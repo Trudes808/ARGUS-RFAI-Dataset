@@ -1,0 +1,15 @@
+# Conda environment for the Python composition/decoding pipeline.
+#   conda env create -f environment.yml
+#   conda activate holoscan_compose
+name: holoscan_compose
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy>=1.26
+  - scipy>=1.11
+  - pyyaml>=6
+  - matplotlib>=3.8
+  - pip
+  - pip:
+      - sigmf>=1.2

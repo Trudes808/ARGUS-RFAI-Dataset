@@ -1,0 +1,34 @@
+{
+  "waveformName": "ZadoffChu_bw50MHz_R25_N601",
+  "class": "Sync_ZadoffChu",
+  "standard": "Zadoff-Chu CAZAC sync sequence",
+  "outputSampleRateHz": 2.4576E+8,
+  "centerFrequencyHz": 0,
+  "outputVariable": "f_sig",
+  "outputDataType": "complex single (complex64 IQ)",
+  "createdBy": "generate_zadoff_chu_50mhz.m",
+  "createdOn": "2026-06-23 10:20:44 ****",
+  "bitSource": "Not applicable (deterministic ZC sync sequence)",
+  "designedOccupiedBandwidthHz": 5.0E+7,
+  "measuredOccupiedBandwidthHz": 4.92224064638196E+7,
+  "nativeSampleRateHz": 5.0E+7,
+  "zadoffChu": {
+    "Root": 25,
+    "SequenceLength": 601,
+    "ChipRateHz": 5.0E+7,
+    "CyclicPrefixChips": 0,
+    "NumRepetitions": 1,
+    "Formula": "zadoffChuSeq(Root, SequenceLength) at ChipRateHz, then resample to OutputSampleRateHz"
+  },
+  "resampling": {
+    "Method": "resample",
+    "P": 3072,
+    "Q": 625
+  },
+  "autocorrPSLRdB": 20.369408246445989,
+  "usageRecipe": "Regenerate the replica with zadoffChuSeq(Root,SequenceLength) and resample(...,P,Q), or use the stored f_sig directly. Cross-correlate the received 245.76 MSps stream against the replica; the magnitude peak marks the sync timing. Prepend f_sig to a payload waveform to use as a preamble.",
+  "numOutputSamples": 2955,
+  "durationSeconds": 1.202392578125E-5,
+  "matFile": "/Users/bqn82/Documents/holoscan/holoscan_waveform_generation/generated_sync_sequences/ZadoffChu_bw50MHz_R25_N601.mat",
+  "metadataFile": "/Users/bqn82/Documents/holoscan/holoscan_waveform_generation/generated_sync_sequences/ZadoffChu_bw50MHz_R25_N601.json"
+}

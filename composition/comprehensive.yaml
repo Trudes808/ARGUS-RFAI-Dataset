@@ -1,0 +1,745 @@
+name: comprehensive
+output_dir: composites
+zc_file: ../generated_sync_sequences/ZadoffChu_bw50MHz_R25_N601.mat
+library_root: ../generated_waveforms_24576
+guard_time_ms: 25
+ref_rms: 0.15
+peak_normalize: 0.95
+time_groups:
+- blocks:
+  - slots: [0, 1, 2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw160MHz_mcs0_gi3p2us_heltf4_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1, 2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw160MHz_mcs4_gi3p2us_heltf4_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1, 2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw160MHz_mcs7_gi3p2us_heltf4_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1, 2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw160MHz_mcs9_gi3p2us_heltf4_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf4_occ73p728MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs15kHz_pdschQPSK_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf4_occ82p944MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs15kHz_pdsch16QAM_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf4_occ82p944MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs15kHz_pdsch64QAM_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf4_occ73p728MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs15kHz_pdsch256QAM_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf4_occ82p944MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs30kHz_pdschQPSK_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf4_occ82p944MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs30kHz_pdsch16QAM_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf8_occ73p728MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs30kHz_pdsch64QAM_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf8_occ82p944MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw50MHz_scs30kHz_pdsch256QAM_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf8_occ82p944MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw40MHz_mcs0_gi3p2us_heltf4_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf8_occ73p728MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw40MHz_mcs4_gi3p2us_heltf4_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf8_occ82p944MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw40MHz_mcs7_gi3p2us_heltf4_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs61p44MHz_fosf8_occ82p944MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw40MHz_mcs9_gi3p2us_heltf4_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf4_occ73p728MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs15kHz_pdschQPSK_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf4_occ82p944MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs15kHz_pdsch16QAM_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf4_occ82p944MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs15kHz_pdsch64QAM_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf4_occ73p728MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs15kHz_pdsch256QAM_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf4_occ82p944MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs30kHz_pdschQPSK_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf4_occ82p944MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs30kHz_pdsch16QAM_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf8_occ73p728MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs30kHz_pdsch64QAM_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf8_occ82p944MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw25MHz_scs30kHz_pdsch256QAM_pn9.mat, power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf4_occ20p736MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf8_occ82p944MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf4_occ20p736MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -3.0}
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf4_occ20p736MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf8_occ73p728MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf4_occ20p736MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf8_occ20p736MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf8_occ82p944MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf8_occ20p736MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -6.0}
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf8_occ20p736MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs61p44MHz_fosf8_occ82p944MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf8_occ20p736MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: 0.0}
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf4_occ20p736MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf4_occ73p728MHz_gray_rrc_a0p20_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf4_occ20p736MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -9.0}
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf4_occ20p736MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf4_occ82p944MHz_gray_rrc_a0p35_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf4_occ20p736MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -3.0}
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf8_occ20p736MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf4_occ82p944MHz_gray_rc_a0p35_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf8_occ20p736MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf8_occ20p736MHz_phase0_gray_rrc_a0p35_pn9.mat,
+      power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf4_occ73p728MHz_bin_rrc_a0p20_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf8_occ20p736MHz_phase0_gray_rc_a0p35_pn9.mat,
+      power_db: -6.0}
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf4_occ20p736MHz_gray_rrc_a0p35_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf4_occ82p944MHz_bin_rrc_a0p35_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf4_occ20p736MHz_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf4_occ20p736MHz_bin_rrc_a0p35_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf4_occ82p944MHz_bin_rc_a0p35_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf4_occ20p736MHz_bin_rc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf8_occ20p736MHz_gray_rrc_a0p35_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf8_occ73p728MHz_gray_rrc_a0p20_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf8_occ20p736MHz_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf8_occ20p736MHz_bin_rrc_a0p35_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf8_occ82p944MHz_gray_rrc_a0p35_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf8_occ20p736MHz_bin_rc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: Broadband_FM/Broadband_FM_dev10MHz_occ20p03MHz_lpf15kHz_mp3.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf8_occ82p944MHz_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw20MHz_mcs0_gi3p2us_heltf4_pn9.mat, power_db: -6.0}
+    - {mat: 802_11ax/802_11ax_bw20MHz_mcs4_gi3p2us_heltf4_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf8_occ73p728MHz_bin_rrc_a0p20_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw20MHz_mcs7_gi3p2us_heltf4_pn9.mat, power_db: 0.0}
+    - {mat: 802_11ax/802_11ax_bw20MHz_mcs9_gi3p2us_heltf4_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf8_occ82p944MHz_bin_rrc_a0p35_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs15kHz_pdschQPSK_pn9.mat, power_db: -9.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs15kHz_pdsch16QAM_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs61p44MHz_fosf8_occ82p944MHz_bin_rc_a0p35_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs15kHz_pdsch64QAM_pn9.mat, power_db: -3.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs15kHz_pdsch256QAM_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx7_occ98p28MHz_fft4096_mod4_cr1_2_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf4_occ18p432MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf4_occ18p432MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx7_occ98p28MHz_fft4096_mod4_cr3_4_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf8_occ18p432MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -6.0}
+    - {mat: BPSK/BPSK_Rs15p36MHz_fosf8_occ18p432MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx7_occ98p28MHz_fft4096_mod16_cr1_2_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf4_occ18p432MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: 0.0}
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf4_occ18p432MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx7_occ98p28MHz_fft4096_mod16_cr3_4_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf8_occ18p432MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -9.0}
+    - {mat: QPSK/QPSK_Rs15p36MHz_fosf8_occ18p432MHz_phase0_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx7_occ98p28MHz_fft4096_mod64_cr1_2_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf4_occ18p432MHz_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf4_occ18p432MHz_bin_rrc_a0p20_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx7_occ98p28MHz_fft4096_mod64_cr3_4_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf8_occ18p432MHz_gray_rrc_a0p20_pn9.mat, power_db: -12.0}
+    - {mat: 16QAM/16QAM_Rs15p36MHz_fosf8_occ18p432MHz_bin_rrc_a0p20_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw100MHz_scs30kHz_pdschQPSK_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs30kHz_pdschQPSK_pn9.mat, power_db: -6.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs30kHz_pdsch16QAM_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw100MHz_scs30kHz_pdsch16QAM_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs30kHz_pdsch64QAM_pn9.mat, power_db: 0.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw20MHz_scs30kHz_pdsch256QAM_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw100MHz_scs30kHz_pdsch64QAM_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx5_occ18MHz_fft2048_mod4_cr1_2_pn9.mat, power_db: -9.0}
+    - {mat: OFDM/OFDM_bwidx5_occ18MHz_fft2048_mod4_cr3_4_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw100MHz_scs30kHz_pdsch256QAM_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx5_occ18MHz_fft2048_mod16_cr1_2_pn9.mat, power_db: -3.0}
+    - {mat: OFDM/OFDM_bwidx5_occ18MHz_fft2048_mod16_cr3_4_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw80MHz_mcs0_gi3p2us_heltf4_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx5_occ18MHz_fft2048_mod64_cr1_2_pn9.mat, power_db: -12.0}
+    - {mat: OFDM/OFDM_bwidx5_occ18MHz_fft2048_mod64_cr3_4_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw80MHz_mcs4_gi3p2us_heltf4_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs15kHz_pdschQPSK_pn9.mat, power_db: -6.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs15kHz_pdsch16QAM_pn9.mat, power_db: -9.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs15kHz_pdsch64QAM_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw80MHz_mcs7_gi3p2us_heltf4_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs15kHz_pdsch256QAM_pn9.mat, power_db: -3.0}
+    - {mat: OFDM/OFDM_bwidx4_occ9MHz_fft1024_mod4_cr1_2_pn9.mat, power_db: -6.0}
+    - {mat: OFDM/OFDM_bwidx4_occ9MHz_fft1024_mod4_cr3_4_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: 802_11ax/802_11ax_bw80MHz_mcs9_gi3p2us_heltf4_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx4_occ9MHz_fft1024_mod16_cr1_2_pn9.mat, power_db: 0.0}
+    - {mat: OFDM/OFDM_bwidx4_occ9MHz_fft1024_mod16_cr3_4_pn9.mat, power_db: -3.0}
+    - {mat: OFDM/OFDM_bwidx4_occ9MHz_fft1024_mod64_cr1_2_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0, 1]
+    waveforms:
+    - {mat: Broadband_FM/Broadband_FM_dev30p72MHz_occ61p47MHz_lpf15kHz_mp3.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx4_occ9MHz_fft1024_mod64_cr3_4_pn9.mat, power_db: -12.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs30kHz_pdschQPSK_pn9.mat, power_db: 0.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs30kHz_pdsch16QAM_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs30kHz_pdsch64QAM_pn9.mat, power_db: -6.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw10MHz_scs30kHz_pdsch256QAM_pn9.mat, power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf4_occ5p184MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -12.0}
+  - slots: [1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf4_occ5p184MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf4_occ5p184MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -3.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf4_occ5p184MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf8_occ5p184MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf8_occ5p184MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf8_occ5p184MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: 0.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf8_occ5p184MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -3.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf4_occ5p184MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -6.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf4_occ5p184MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -9.0}
+  - slots: [1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf4_occ5p184MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf4_occ5p184MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf8_occ5p184MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf8_occ5p184MHz_phasepi4_gray_rc_a0p35_pn9.mat,
+      power_db: -6.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf8_occ5p184MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf8_occ5p184MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf4_occ5p184MHz_gray_rrc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf4_occ5p184MHz_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf4_occ5p184MHz_bin_rrc_a0p35_pn9.mat, power_db: -6.0}
+  - slots: [1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf4_occ5p184MHz_bin_rc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf8_occ5p184MHz_gray_rrc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf8_occ5p184MHz_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf8_occ5p184MHz_bin_rrc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf8_occ5p184MHz_bin_rc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf4_occ4p608MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf4_occ4p608MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf8_occ4p608MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: 0.0}
+    - {mat: BPSK/BPSK_Rs3p84MHz_fosf8_occ4p608MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -3.0}
+  - slots: [1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf4_occ4p608MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -6.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf4_occ4p608MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -9.0}
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf8_occ4p608MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs3p84MHz_fosf8_occ4p608MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf4_occ4p608MHz_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf4_occ4p608MHz_bin_rrc_a0p20_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf8_occ4p608MHz_gray_rrc_a0p20_pn9.mat, power_db: -9.0}
+    - {mat: 16QAM/16QAM_Rs3p84MHz_fosf8_occ4p608MHz_bin_rrc_a0p20_pn9.mat, power_db: -12.0}
+    - {mat: OFDM/OFDM_bwidx3_occ4p5MHz_fft512_mod4_cr1_2_pn9.mat, power_db: 0.0}
+  - slots: [1]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx3_occ4p5MHz_fft512_mod4_cr3_4_pn9.mat, power_db: -3.0}
+    - {mat: OFDM/OFDM_bwidx3_occ4p5MHz_fft512_mod16_cr1_2_pn9.mat, power_db: -6.0}
+    - {mat: OFDM/OFDM_bwidx3_occ4p5MHz_fft512_mod16_cr3_4_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: OFDM/OFDM_bwidx3_occ4p5MHz_fft512_mod64_cr1_2_pn9.mat, power_db: -12.0}
+    - {mat: OFDM/OFDM_bwidx3_occ4p5MHz_fft512_mod64_cr3_4_pn9.mat, power_db: 0.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs15kHz_pdschQPSK_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs15kHz_pdsch16QAM_pn9.mat, power_db: -6.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs15kHz_pdsch64QAM_pn9.mat, power_db: -9.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs15kHz_pdsch256QAM_pn9.mat, power_db: -12.0}
+  - slots: [1]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs30kHz_pdschQPSK_pn9.mat, power_db: 0.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs30kHz_pdsch16QAM_pn9.mat, power_db: -3.0}
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs30kHz_pdsch64QAM_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 5G_Downlink/5G_Downlink_bw5MHz_scs30kHz_pdsch256QAM_pn9.mat, power_db: -9.0}
+    - {mat: Broadband_FM/Broadband_FM_dev1MHz_occ2p03MHz_lpf15kHz_mp3.mat, power_db: -12.0}
+    - {mat: Bluetooth/Bluetooth_le2m_sps8_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: Bluetooth/Bluetooth_le2m_sps16_pn9.mat, power_db: -3.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf4_occ1p296MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf4_occ1p296MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -9.0}
+  - slots: [1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs960kHz_fosf4_occ1p296MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf4_occ1p296MHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf8_occ1p296MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs960kHz_fosf8_occ1p296MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf8_occ1p296MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf8_occ1p296MHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs960kHz_fosf4_occ1p296MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: 0.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf4_occ1p296MHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf4_occ1p296MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -6.0}
+  - slots: [1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs960kHz_fosf4_occ1p296MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf8_occ1p296MHz_phasepi4_gray_rrc_a0p35_pn9.mat,
+      power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf8_occ1p296MHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs960kHz_fosf8_occ1p296MHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf8_occ1p296MHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf4_occ1p296MHz_gray_rrc_a0p35_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf4_occ1p296MHz_gray_rc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf4_occ1p296MHz_bin_rrc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf4_occ1p296MHz_bin_rc_a0p35_pn9.mat, power_db: -3.0}
+  - slots: [1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf8_occ1p296MHz_gray_rrc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf8_occ1p296MHz_gray_rc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf8_occ1p296MHz_bin_rrc_a0p35_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf8_occ1p296MHz_bin_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf4_occ1p152MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf4_occ1p152MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -6.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs960kHz_fosf8_occ1p152MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs960kHz_fosf8_occ1p152MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf4_occ1p152MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: 0.0}
+  - slots: [1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs960kHz_fosf4_occ1p152MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf8_occ1p152MHz_phasepi4_gray_rrc_a0p20_pn9.mat,
+      power_db: -6.0}
+    - {mat: QPSK/QPSK_Rs960kHz_fosf8_occ1p152MHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf4_occ1p152MHz_gray_rrc_a0p20_pn9.mat, power_db: -12.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf4_occ1p152MHz_bin_rrc_a0p20_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf8_occ1p152MHz_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs960kHz_fosf8_occ1p152MHz_bin_rrc_a0p20_pn9.mat, power_db: -6.0}
+    - {mat: Bluetooth/Bluetooth_br_dh1_sps8_pn9.mat, power_db: -9.0}
+    - {mat: Bluetooth/Bluetooth_edr2m_2dh1_sps8_pn9.mat, power_db: -12.0}
+  - slots: [1]
+    waveforms:
+    - {mat: Bluetooth/Bluetooth_edr3m_3dh1_sps8_pn9.mat, power_db: 0.0}
+    - {mat: Bluetooth/Bluetooth_le1m_sps8_pn9.mat, power_db: -3.0}
+    - {mat: Bluetooth/Bluetooth_le500k_sps8_pn9.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: Bluetooth/Bluetooth_le125k_sps8_pn9.mat, power_db: -9.0}
+    - {mat: Bluetooth/Bluetooth_br_dh1_sps16_pn9.mat, power_db: -12.0}
+    - {mat: Bluetooth/Bluetooth_edr2m_2dh1_sps16_pn9.mat, power_db: 0.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: Bluetooth/Bluetooth_edr3m_3dh1_sps16_pn9.mat, power_db: -3.0}
+    - {mat: Bluetooth/Bluetooth_le1m_sps16_pn9.mat, power_db: -6.0}
+    - {mat: Bluetooth/Bluetooth_le500k_sps16_pn9.mat, power_db: -9.0}
+  - slots: [1]
+    waveforms:
+    - {mat: Bluetooth/Bluetooth_le125k_sps16_pn9.mat, power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf4_occ324kHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf4_occ324kHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+  - slots: [2]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs240kHz_fosf4_occ324kHz_phasepi4_gray_rrc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf4_occ324kHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf8_occ324kHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -12.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs240kHz_fosf8_occ324kHz_phase0_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf8_occ324kHz_phasepi4_gray_rrc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf8_occ324kHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: -6.0}
+  - slots: [1]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs240kHz_fosf4_occ324kHz_phasepi4_gray_rrc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf4_occ324kHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf4_occ324kHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: 0.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs240kHz_fosf4_occ324kHz_phase0_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf8_occ324kHz_phasepi4_gray_rrc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf8_occ324kHz_phasepi4_gray_rc_a0p35_pn9.mat, power_db: -9.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs240kHz_fosf8_occ324kHz_phase0_gray_rrc_a0p35_pn9.mat, power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf8_occ324kHz_phase0_gray_rc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf4_occ324kHz_gray_rrc_a0p35_pn9.mat, power_db: -3.0}
+  - slots: [1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf4_occ324kHz_gray_rc_a0p35_pn9.mat, power_db: -6.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf4_occ324kHz_bin_rrc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf4_occ324kHz_bin_rc_a0p35_pn9.mat, power_db: -12.0}
+  - slots: [2]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf8_occ324kHz_gray_rrc_a0p35_pn9.mat, power_db: 0.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf8_occ324kHz_gray_rc_a0p35_pn9.mat, power_db: -3.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf8_occ324kHz_bin_rrc_a0p35_pn9.mat, power_db: -6.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf8_occ324kHz_bin_rc_a0p35_pn9.mat, power_db: -9.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf4_occ288kHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -12.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf4_occ288kHz_phasepi4_gray_rrc_a0p20_pn9.mat, power_db: 0.0}
+  - slots: [1]
+    waveforms:
+    - {mat: BPSK/BPSK_Rs240kHz_fosf8_occ288kHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+    - {mat: BPSK/BPSK_Rs240kHz_fosf8_occ288kHz_phasepi4_gray_rrc_a0p20_pn9.mat, power_db: -6.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf4_occ288kHz_phasepi4_gray_rrc_a0p20_pn9.mat, power_db: -9.0}
+  - slots: [2]
+    waveforms:
+    - {mat: QPSK/QPSK_Rs240kHz_fosf4_occ288kHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -12.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf8_occ288kHz_phasepi4_gray_rrc_a0p20_pn9.mat, power_db: 0.0}
+    - {mat: QPSK/QPSK_Rs240kHz_fosf8_occ288kHz_phase0_gray_rrc_a0p20_pn9.mat, power_db: -3.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf4_occ288kHz_gray_rrc_a0p20_pn9.mat, power_db: -6.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf4_occ288kHz_bin_rrc_a0p20_pn9.mat, power_db: -9.0}
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf8_occ288kHz_gray_rrc_a0p20_pn9.mat, power_db: -12.0}
+  - slots: [1]
+    waveforms:
+    - {mat: 16QAM/16QAM_Rs240kHz_fosf8_occ288kHz_bin_rrc_a0p20_pn9.mat, power_db: 0.0}
+    - {mat: Broadband_FM/Broadband_FM_dev75kHz_occ180kHz_lpf15kHz_mp3.mat, power_db: -3.0}
+    - {mat: Broadband_FM/Broadband_FM_dev50kHz_occ130kHz_lpf15kHz_mp3.mat, power_db: -6.0}
+  - slots: [2]
+    waveforms:
+    - {mat: Narrowband_FM/Narrowband_FM_dev10kHz_occ26kHz_lpf3kHz_mp3.mat, power_db: -9.0}
+    - {mat: Narrowband_FM/Narrowband_FM_dev5kHz_occ16kHz_lpf3kHz_mp3.mat, power_db: -12.0}
+    - {mat: Narrowband_FM/Narrowband_FM_dev2p5kHz_occ11kHz_lpf3kHz_mp3.mat, power_db: 0.0}
+- blocks:
+  - slots: [0]
+    waveforms:
+    - {mat: Narrowband_FM/Narrowband_FM_dev1kHz_occ8kHz_lpf3kHz_mp3.mat, power_db: -3.0}

@@ -1,0 +1,8 @@
+# Generated data: regenerable, and published in the Texas Data Repository
+generated_waveforms_24576/
+composition/composites/
+recovered_fm_audio/
+*.sigmf-data
+
+__pycache__/
+.DS_Store
