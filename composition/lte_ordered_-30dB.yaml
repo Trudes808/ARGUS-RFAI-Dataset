@@ -1,0 +1,221 @@
+name: lte_ordered_-30dB
+output_dir: composites
+zc_file: ../generated_sync_sequences/ZadoffChu_bw50MHz_R25_N601.mat
+library_root: ../generated_waveforms_24576
+guard1_ms: 2.5
+guard2_ms: 5.0
+power_mode: original
+ref_rms: 0.95
+peak_normalize: 0.95
+waveform_gain_db: -30.0
+time_groups:
+- blocks:
+  - slots: &id001 [0]
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdschQPSK_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw20MHz_pdsch16QAM_pn9.mat, duration_ms: 20.0}
+  - slots: &id002 [1]
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdsch64QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw15MHz_pdschQPSK_pn9.mat, duration_ms: 20.0}
+  - slots: &id003 [2]
+    waveforms:
+    - {mat: LTE/LTE_bw15MHz_pdsch16QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw15MHz_pdsch64QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw10MHz_pdschQPSK_pn9.mat, duration_ms: 20.0}
+- blocks:
+  - slots: &id004 [0]
+    waveforms:
+    - {mat: LTE/LTE_bw10MHz_pdsch16QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw10MHz_pdsch64QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw5MHz_pdschQPSK_pn9.mat, duration_ms: 20.0}
+  - slots: &id005 [1]
+    waveforms:
+    - {mat: LTE/LTE_bw5MHz_pdsch16QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw5MHz_pdsch64QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw3MHz_pdschQPSK_pn9.mat, duration_ms: 20.0}
+  - slots: &id006 [2]
+    waveforms:
+    - {mat: LTE/LTE_bw3MHz_pdsch16QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw3MHz_pdsch64QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdschQPSK_pn9.mat, duration_ms: 20.0}
+- blocks:
+  - slots: &id007 [0]
+    waveforms:
+    - {mat: LTE/LTE_bw1p4MHz_pdsch16QAM_pn9.mat, duration_ms: 20.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdsch64QAM_pn9.mat, duration_ms: 20.0}
+- blocks:
+  - slots: *id001
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdschQPSK_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw20MHz_pdsch16QAM_pn9.mat, duration_ms: 10.0}
+  - slots: *id002
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdsch64QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw15MHz_pdschQPSK_pn9.mat, duration_ms: 10.0}
+  - slots: *id003
+    waveforms:
+    - {mat: LTE/LTE_bw15MHz_pdsch16QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw15MHz_pdsch64QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw10MHz_pdschQPSK_pn9.mat, duration_ms: 10.0}
+- blocks:
+  - slots: *id004
+    waveforms:
+    - {mat: LTE/LTE_bw10MHz_pdsch16QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw10MHz_pdsch64QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw5MHz_pdschQPSK_pn9.mat, duration_ms: 10.0}
+  - slots: *id005
+    waveforms:
+    - {mat: LTE/LTE_bw5MHz_pdsch16QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw5MHz_pdsch64QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw3MHz_pdschQPSK_pn9.mat, duration_ms: 10.0}
+  - slots: *id006
+    waveforms:
+    - {mat: LTE/LTE_bw3MHz_pdsch16QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw3MHz_pdsch64QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdschQPSK_pn9.mat, duration_ms: 10.0}
+- blocks:
+  - slots: *id007
+    waveforms:
+    - {mat: LTE/LTE_bw1p4MHz_pdsch16QAM_pn9.mat, duration_ms: 10.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdsch64QAM_pn9.mat, duration_ms: 10.0}
+- blocks:
+  - slots: *id001
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdschQPSK_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw20MHz_pdsch16QAM_pn9.mat, duration_ms: 5.0}
+  - slots: *id002
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdsch64QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw15MHz_pdschQPSK_pn9.mat, duration_ms: 5.0}
+  - slots: *id003
+    waveforms:
+    - {mat: LTE/LTE_bw15MHz_pdsch16QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw15MHz_pdsch64QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw10MHz_pdschQPSK_pn9.mat, duration_ms: 5.0}
+- blocks:
+  - slots: *id004
+    waveforms:
+    - {mat: LTE/LTE_bw10MHz_pdsch16QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw10MHz_pdsch64QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw5MHz_pdschQPSK_pn9.mat, duration_ms: 5.0}
+  - slots: *id005
+    waveforms:
+    - {mat: LTE/LTE_bw5MHz_pdsch16QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw5MHz_pdsch64QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw3MHz_pdschQPSK_pn9.mat, duration_ms: 5.0}
+  - slots: *id006
+    waveforms:
+    - {mat: LTE/LTE_bw3MHz_pdsch16QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw3MHz_pdsch64QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdschQPSK_pn9.mat, duration_ms: 5.0}
+- blocks:
+  - slots: *id007
+    waveforms:
+    - {mat: LTE/LTE_bw1p4MHz_pdsch16QAM_pn9.mat, duration_ms: 5.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdsch64QAM_pn9.mat, duration_ms: 5.0}
+- blocks:
+  - slots: *id001
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdschQPSK_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw20MHz_pdsch16QAM_pn9.mat, duration_ms: 1.0}
+  - slots: *id002
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdsch64QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw15MHz_pdschQPSK_pn9.mat, duration_ms: 1.0}
+  - slots: *id003
+    waveforms:
+    - {mat: LTE/LTE_bw15MHz_pdsch16QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw15MHz_pdsch64QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw10MHz_pdschQPSK_pn9.mat, duration_ms: 1.0}
+- blocks:
+  - slots: *id004
+    waveforms:
+    - {mat: LTE/LTE_bw10MHz_pdsch16QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw10MHz_pdsch64QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw5MHz_pdschQPSK_pn9.mat, duration_ms: 1.0}
+  - slots: *id005
+    waveforms:
+    - {mat: LTE/LTE_bw5MHz_pdsch16QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw5MHz_pdsch64QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw3MHz_pdschQPSK_pn9.mat, duration_ms: 1.0}
+  - slots: *id006
+    waveforms:
+    - {mat: LTE/LTE_bw3MHz_pdsch16QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw3MHz_pdsch64QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdschQPSK_pn9.mat, duration_ms: 1.0}
+- blocks:
+  - slots: *id007
+    waveforms:
+    - {mat: LTE/LTE_bw1p4MHz_pdsch16QAM_pn9.mat, duration_ms: 1.0}
+    - {mat: LTE/LTE_bw1p4MHz_pdsch64QAM_pn9.mat, duration_ms: 1.0}
+- blocks:
+  - slots: *id001
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdschQPSK_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw20MHz_pdsch16QAM_pn9.mat, duration_ms: 0.2}
+  - slots: *id002
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdsch64QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw15MHz_pdschQPSK_pn9.mat, duration_ms: 0.2}
+  - slots: *id003
+    waveforms:
+    - {mat: LTE/LTE_bw15MHz_pdsch16QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw15MHz_pdsch64QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw10MHz_pdschQPSK_pn9.mat, duration_ms: 0.2}
+- blocks:
+  - slots: *id004
+    waveforms:
+    - {mat: LTE/LTE_bw10MHz_pdsch16QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw10MHz_pdsch64QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw5MHz_pdschQPSK_pn9.mat, duration_ms: 0.2}
+  - slots: *id005
+    waveforms:
+    - {mat: LTE/LTE_bw5MHz_pdsch16QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw5MHz_pdsch64QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw3MHz_pdschQPSK_pn9.mat, duration_ms: 0.2}
+  - slots: *id006
+    waveforms:
+    - {mat: LTE/LTE_bw3MHz_pdsch16QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw3MHz_pdsch64QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw1p4MHz_pdschQPSK_pn9.mat, duration_ms: 0.2}
+- blocks:
+  - slots: *id007
+    waveforms:
+    - {mat: LTE/LTE_bw1p4MHz_pdsch16QAM_pn9.mat, duration_ms: 0.2}
+    - {mat: LTE/LTE_bw1p4MHz_pdsch64QAM_pn9.mat, duration_ms: 0.2}
+- blocks:
+  - slots: *id001
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdschQPSK_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw20MHz_pdsch16QAM_pn9.mat, duration_ms: 0.04}
+  - slots: *id002
+    waveforms:
+    - {mat: LTE/LTE_bw20MHz_pdsch64QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw15MHz_pdschQPSK_pn9.mat, duration_ms: 0.04}
+  - slots: *id003
+    waveforms:
+    - {mat: LTE/LTE_bw15MHz_pdsch16QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw15MHz_pdsch64QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw10MHz_pdschQPSK_pn9.mat, duration_ms: 0.04}
+- blocks:
+  - slots: *id004
+    waveforms:
+    - {mat: LTE/LTE_bw10MHz_pdsch16QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw10MHz_pdsch64QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw5MHz_pdschQPSK_pn9.mat, duration_ms: 0.04}
+  - slots: *id005
+    waveforms:
+    - {mat: LTE/LTE_bw5MHz_pdsch16QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw5MHz_pdsch64QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw3MHz_pdschQPSK_pn9.mat, duration_ms: 0.04}
+  - slots: *id006
+    waveforms:
+    - {mat: LTE/LTE_bw3MHz_pdsch16QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw3MHz_pdsch64QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw1p4MHz_pdschQPSK_pn9.mat, duration_ms: 0.04}
+- blocks:
+  - slots: *id007
+    waveforms:
+    - {mat: LTE/LTE_bw1p4MHz_pdsch16QAM_pn9.mat, duration_ms: 0.04}
+    - {mat: LTE/LTE_bw1p4MHz_pdsch64QAM_pn9.mat, duration_ms: 0.04}

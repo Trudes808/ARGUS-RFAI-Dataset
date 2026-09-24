@@ -34,9 +34,8 @@ ZC**. `decode.py` does the following:
 Because positions are ZC-relative, bulk channel delay cancels out. Frequencies are
 **complex baseband** (±122.88 MHz); the decoder does not read `core:frequency`.
 
-Decoder modules: `decode.py` (CLI + `decode_composite()` / `validate()`),
-`fine_comb_decode.py` (low-SNR alternative), `zc_sync.py`, `protocol.py`,
-`metadata_modem.py`, `geometry.py`. ZC replica: `../generated_sync_sequences/
+Decoder modules: `decode.py` (CLI + `decode_composite()` / `validate()`), `zc_sync.py`,
+`protocol.py`, `metadata_modem.py`, `geometry.py`. ZC replica: `../generated_sync_sequences/
 ZadoffChu_bw50MHz_R25_N601.mat` (root 25, length 601, 50 Mchip/s resampled to 245.76 MSps =
 2955 samples).
 
@@ -74,22 +73,15 @@ Options (defaults are what the published labels used; see below):
 | `--centers MHz,...` | all 5 | Block centers to scan. `-60,0,60` is ~40% faster if no merged 2-block waveforms are present. |
 | `--active-factor X` | 1.5 | Energy-gate sensitivity. Lower means more search windows (finds weaker ZCs, slower). |
 
-Low-SNR alternative (positional args: data, meta, zc, [pfa=1e-7], [profile=auto]). It
-combs the entire capture with a CFAR threshold instead of energy gating; it is slower:
-
-```bash
-python fine_comb_decode.py cap.sigmf-data cap.decoded.sigmf-meta \
-       ../generated_sync_sequences/ZadoffChu_bw50MHz_R25_N601.mat
-```
-
 ### Reading the output
 
 The decoder prints the blocks/time groups decoded and the annotation count. If time-group
 indices are missing, it prints a `WARNING` classifying each gap:
 - **decode issue**: the ZC was found but the metadata failed its CRC. This is an SNR or
   corruption problem; detection tuning won't help.
-- **unfound ZC**: nothing cleared the detector. Try a lower `--active-factor` or
-  `fine_comb_decode.py`.
+- **unfound ZC**: nothing cleared the detector. Try a lower `--active-factor`. (The
+  warning also suggests `fine_comb_decode.py`, a low-SNR decoder that was not used for
+  the published labels and is not included here.)
 
 ## Annotation schema
 

@@ -1,4 +1,4 @@
-name: comprehensive_ordered
+name: comprehensive_ordered_-30dB
 output_dir: composites
 zc_file: ../generated_sync_sequences/ZadoffChu_bw50MHz_R25_N601.mat
 library_root: ../generated_waveforms_24576
@@ -7,7 +7,7 @@ guard2_ms: 5.0
 power_mode: original
 ref_rms: 0.95
 peak_normalize: 0.95
-waveform_gain_db: 0.0
+waveform_gain_db: -30.0
 time_groups:
 - blocks:
   - slots: &id001 [0, 1]
