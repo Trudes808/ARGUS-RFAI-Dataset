@@ -75,7 +75,9 @@ Options (defaults are what the published labels used; see below):
 
 ### Reading the output
 
-The decoder prints the blocks/time groups decoded and the annotation count. If time-group
+The decoder prints the blocks/time groups decoded and the annotation count. numpy
+`RuntimeWarning`s (divide by zero / invalid value in `metadata_modem.py`) are expected: they
+come from candidate detections over silent stretches, which the CRC then rejects. If time-group
 indices are missing, it prints a `WARNING` classifying each gap:
 - **decode issue**: the ZC was found but the metadata failed its CRC. This is an SNR or
   corruption problem; detection tuning won't help.

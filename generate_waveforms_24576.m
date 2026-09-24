@@ -337,7 +337,7 @@ if exist("helperOFDMTx","file") == 2, return; end
 cands = string.empty;
 e = string(getenv("OFDM_HELPER_DIR"));
 if strlength(e) > 0, cands(end+1) = e; end
-home = char(java.lang.System.getProperty("user.home"));
+home = getenv("HOME"); if isempty(home), home = getenv("USERPROFILE"); end
 d = dir(fullfile(home, "Documents", "MATLAB", "Examples", "*", "comm", "OFDMEndToEndExample"));
 for i = 1:numel(d), cands(end+1) = string(fullfile(d(i).folder, d(i).name)); end
 cands(end+1) = string(fullfile(matlabroot, "examples", "comm", "OFDMEndToEndExample"));

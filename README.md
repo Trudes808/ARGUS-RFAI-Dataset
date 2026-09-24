@@ -65,8 +65,66 @@ conda activate holoscan_compose
 (numpy, scipy, **sigmf** ≥1.2, pyyaml, matplotlib. Pip equivalent:
 `pip install "numpy>=1.26" "scipy>=1.11" "sigmf>=1.2" pyyaml matplotlib`.)
 
-No source paths are hardcoded except the auto-located MATLAB OFDM helpers. Python paths are
-relative to the config/script location, so keep the repo layout intact.
+### Paths and portability
+
+No machine-specific paths are hardcoded. Everything resolves relative to the script or
+config file, so the only requirement is to **keep the repo layout intact**:
+
+```
+ARGUS-RFAI-Dataset/
+├── generate_*.m, Disco_Snail_easter_egg.mp3
+├── generated_sync_sequences/        ZC .mat (committed)
+├── generated_waveforms_24576/       waveform library (generated or downloaded from TDR; gitignored)
+└── composition/                     *.py, *.yaml, decode/export .m
+    └── composites/                  compose.py output (gitignored)
+```
+
+- **Waveform library**: must live at `generated_waveforms_24576/` in the repo root. The
+  generators write there by default, the builders read `../generated_waveforms_24576/`
+  relative to `composition/`, and every YAML has `library_root: ../generated_waveforms_24576`.
+  If you download the TDR *Tx Waveform Library*, unpack it there. To use another location,
+  pass `"OutputRoot"` to the generators and edit `library_root` in the YAMLs.
+- **ZC sync file**: YAMLs use `zc_file: ../generated_sync_sequences/...`; `decode.py` takes
+  it as an argument.
+- **YAML paths** (`library_root`, `zc_file`, `output_dir`) are relative to the YAML's own
+  directory, so `compose.py` can be run from any working directory.
+- **Python**: run scripts in `composition/` directly (`python composition/compose.py
+  composition/comprehensive_ordered.yaml` works from the repo root); they import their
+  sibling modules. Paths you pass on the command line (captures, metas) are relative to your
+  working directory.
+- **MATLAB**: the generators write relative to their own location regardless of the
+  current folder; call them from the repo root (or `addpath` it). The decode/export scripts
+  live in `composition/`: `cd composition` or `addpath composition` first.
+- **FM audio source**: `Disco_Snail_easter_egg.mp3` in the repo root (generators and
+  `export_fm_audio` default to it; override with `"AudioFile"`). Each FM waveform's metadata
+  stores the absolute audio path from the machine that generated it. If that path doesn't
+  exist (e.g. the TDR library, generated on macOS), `decode_waveforms_24576` falls back to the
+  mp3 of the same name in the repo root.
+- **OFDM example helpers**: found via, in order, the MATLAB path, `OFDM_HELPER_DIR`,
+  `$HOME/Documents/MATLAB/Examples/*/comm/OFDMEndToEndExample` (`%USERPROFILE%` on Windows),
+  then `matlabroot/examples`. No Java needed, so headless `matlab -batch` works.
+
+### Cross-platform reproducibility
+
+Verified 2026-09-24 by regenerating everything with MATLAB R2026b on Linux and comparing to
+the published library (generated on macOS):
+- Identical: the ZC, every waveform's payload bits, and the IQ of 272 / 287 waveforms (to
+  float precision), plus all five YAMLs from the builders.
+- **FM (9 waveforms)** differs: MP3 decoders differ by platform (Linux returns the audio
+  530 samples / 12 ms later than macOS, with slightly different PCM), so the FM IQ is not
+  bit-exact. For the same reason, audio-QA of the *TDR* FM waveforms on Linux reports a low
+  score (~6 dB SNR, corr ~0.85) because the reference is misaligned; the audio itself is
+  intact. Regenerated-and-decoded on the same machine, FM scores 44–99 dB.
+- **Bluetooth EDR2M / EDR3M / LE500K (6 waveforms)** differ with the same config and bits
+  (Bluetooth Toolbox version).
+- For bit-exact inputs, use the TDR library. Labels do not depend on waveform IQ (only on
+  lengths and bandwidths), so regenerated composites decode to annotations identical to the
+  published ones.
+
+If you slice signals out of a composite or capture using the annotations, filter each slice
+to its annotated band (± up to half the 5 MHz guard) before demodulating; stacked neighbours
+sit 5 MHz away and otherwise leak into receivers without a matched filter (e.g. the
+raised-cosine single-carrier waveforms).
 
 ## 2. Workflow
 
@@ -78,6 +136,14 @@ generate_zadoff_chu_50mhz    % 50 MHz ZC            -> generated_sync_sequences/
 ```
 Instead of regenerating, you can download the library from the TDR *Tx Waveform Library*
 dataset into `generated_waveforms_24576/`.
+
+Optional per-waveform QA (from `composition/`):
+```matlab
+cd composition
+decode_waveforms_24576("../generated_waveforms_24576")   % BER (digital, expect 0) + FM audio SNR
+decode_lte_24576("../generated_waveforms_24576")         % LTE BER, expect 0
+export_fm_audio                                          % listenable FM WAVs -> ../recovered_fm_audio/
+```
 
 ### Step 2: Python, build the configs and compose
 ```bash
@@ -113,9 +179,11 @@ check a re-decode against the published labels: [`composition/DECODE.md`](compos
 | `composition/compose.py` | Build a 200 MHz SigMF composite from a config. |
 | `composition/decode.py` | Recover annotations from a capture. See `DECODE.md`. |
 | `composition/metadata_modem.py`, `zc_sync.py`, `geometry.py`, `protocol.py` | OFDM metadata modem, ZC sync, frequency plan, shared TX/RX layout. |
+| `composition/decode_waveforms_24576.m`, `decode_lte_24576.m` | Per-waveform receive chains → BER (digital, LTE) or FM audio quality. |
+| `composition/export_fm_audio.m` | Listenable multi-second FM WAVs through the same FM chain. |
 
 Not committed (regenerable or published in TDR; see `.gitignore`):
-`generated_waveforms_24576/`, `composition/composites/`.
+`generated_waveforms_24576/`, `composition/composites/`, `recovered_fm_audio/`.
 
 ## 4. Notes
 - IQ is `complex64` (`cf32_le`) at 245.76 MSps throughout.
