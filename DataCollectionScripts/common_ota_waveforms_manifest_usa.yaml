@@ -1,0 +1,1070 @@
+# Common over-the-air waveforms, USA
+# ===================================
+# One entry per emission type that a wideband receiver (USRP X410 1 MHz-7.2 GHz, N320 3 MHz-6 GHz)
+# will commonly see somewhere in the United States. Two consumers read this file:
+#
+#   collect_common_waveforms.py  uses the `sweep` block of every entry to plan a capture sweep
+#                                (centre frequency x sample rate "looks") in a new environment.
+#   common_waveforms_look_up.py  uses the physical-layer facts (band, channel raster, bandwidth,
+#                                temporal behaviour, spectral shape) to attach a coarse estimated label
+#                                ("~FM_broadcast") to detector regions that match one entry closely.
+#
+# Conventions
+#   * All frequencies in Hz, bandwidths in Hz, times in seconds. Write floats with a decimal point
+#     (98.0e6, not 98e6: YAML 1.1 parses the latter as a string).
+#   * freq_ranges_hz   : where the emission may legally / practically sit (absolute RF). A region must
+#                        lie inside one of these ranges to match.
+#   * raster           : channel-centre raster, fc = offset_hz + k * spacing_hz (k integer). Only
+#                        checked when the detector's frequency resolution is fine enough.
+#   * channel_centers_hz: explicit list of channel centres (used instead of / in addition to raster).
+#   * bandwidth_hz     : {min, nominal, max} of the OCCUPIED width a detector box will show
+#                        (e.g. an LTE 10 MHz carrier occupies ~9 MHz; FM with HD Radio sidebands ~400 kHz).
+#   * temporal         : continuous | bursty | either | tdd
+#                        continuous = on for the whole frame in every frame (broadcast, downlinks);
+#                        bursty     = packets / pulses / voice, low duty;  tdd = persistent with
+#                        periodic sub-frame gaps;  either = control channels vs voice, unknown.
+#   * burst_s          : {min, max} duration of one burst (bursty / tdd / either only).
+#   * iq_signature     : flat_top | flat_top_pilot | peaked | chirp | pulsed | any
+#                        shape of the in-band PSD when the raw IQ is available to the look-up.
+#   * tier             : A = label on a confident match; B = label only on a confident match AND when
+#                        the distinguishing features (raster / channel plan / bandwidth set) were
+#                        actually verified; C = informational only, never auto-labelled.
+#   * band_exclusive   : true when, in the US, nothing else is normally transmitted in freq_ranges_hz
+#                        (broadcast FM, TV channels, licensed cellular blocks). Lets the look-up label
+#                        on band + bandwidth + temporal evidence alone.
+#   * requires         : features that must be positively verified (not merely "unresolvable") before a
+#                        label is emitted: any of raster, channels, bandwidth, temporal, burst, iq.
+#   * sweep            : default looks for the collector. centers_hz x rates_hz (cartesian) plus
+#                        optional explicit looks [{fc_hz, rate_hz, tag}]. `default: false` entries are
+#                        only captured when selected with --entries / --tier / --all.
+#                        antenna_group low (< 1.5 GHz) / high (>= 1.5 GHz) selects the RX channel when
+#                        --channel-below / --channel-above are given.
+#
+# Sources (checked 2026-11): 47 CFR Part 73 (broadcast), 47 CFR Part 15 (unlicensed), 47 CFR Part 27/
+# 24/22 (cellular blocks), 3GPP TS 36.101 / 38.101-1 (LTE/NR bands), IEEE 802.11-2020 Annex E
+# (Wi-Fi channel plans), Bluetooth Core 5.4 Vol 6 Part B (BLE channels), IEEE 802.15.4 (Zigbee
+# channel 11-26 plan), LoRa Alliance RP002 (US902-928), ARINC 618 (ACARS), ICAO Annex 10 (SSR/DME),
+# NOAA NWR frequency list, ATSC A/53 (8-VSB pilot at lower edge + 309.441 kHz), ETSI EN 300 175 (DECT).
+
+schema_version: 1
+region: USA
+name: common_ota_waveforms_usa
+updated: 2026-11-09
+defaults:
+  dur_s: 1.0            # seconds per capture (capped by --max-gb)
+  gain_start_db: 35     # starting gain for the automatic probe
+  max_gb: 1.0           # per-capture size cap (ci16 => 4 bytes/sample)
+
+entries:
+
+  # ------------------------------------------------------------------ receiver artefacts ------------
+  - id: receiver_dc_spur
+    label: DC_spur_LO_leakage
+    name: Receiver DC / LO leakage spur at the capture centre
+    service: receiver_artifact
+    tier: A
+    relative_to_capture_center: true      # freq_ranges are offsets from the capture centre frequency
+    freq_ranges_hz: [[-1.0, 1.0]]         # placeholder; the look-up uses +-1.5 detector bins around 0 Hz
+    bandwidth_bins: {min: 1, max: 4}      # in detector frequency bins (rate / columns)
+    temporal: continuous
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [bandwidth, temporal]
+    notes: Zero-IF / low-IF receivers leak a carrier at DC. The detector flags it on purpose (every
+      emission is a signal); the look-up names it so it can be filtered downstream.
+    sweep: {default: false}
+
+  - id: receiver_spur_comb
+    label: spur_comb
+    name: Regular comb of narrow persistent spurs (reference / clock harmonics, e.g. 1.000 MHz grid)
+    service: receiver_artifact
+    tier: A
+    kind: cross_track                     # evaluated over all tracks of a capture, not per track
+    freq_ranges_hz: [[0.0, 1.0e12]]
+    comb: {min_lines: 6, max_width_bins: 6, spacings_hz: [0.5e6, 1.0e6, 2.0e6, 2.5e6, 5.0e6, 10.0e6], tolerance_bins: 1.5, min_fill: 0.5}
+    bandwidth_bins: {min: 1, max: 6}
+    temporal: continuous
+    iq_signature: peaked
+    band_exclusive: false
+    requires: []
+    notes: Four or more continuous lines <= 6 bins wide on one exact spacing are labelled
+      "~spur_comb_<spacing>MHz". Seen on the N320 bench at 1.000 MHz spacing (external reference harmonics);
+      absent from terminated-input recordings of the same receiver without the reference.
+    sweep: {default: false}
+
+  # ------------------------------------------------------------------ broadcast -----------------------
+  - id: fm_broadcast
+    label: FM_broadcast
+    name: FM broadcast radio (WFM stereo, optional HD Radio IBOC sidebands)
+    service: broadcast
+    tier: A
+    freq_ranges_hz: [[87.8e6, 108.0e6]]
+    raster: {spacing_hz: 200.0e3, offset_hz: 87.9e6}     # 87.9, 88.1 ... 107.9 MHz (odd 100 kHz)
+    bandwidth_hz: {min: 120.0e3, nominal: 200.0e3, max: 460.0e3}  # analog ~180 kHz; + HD sidebands to ~400 kHz
+    temporal: continuous
+    iq_signature: any                     # analog WFM averages peaked, HD Radio hybrids flat: shape is not diagnostic
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    modulation: WFM (75 kHz deviation, 19 kHz pilot, 57 kHz RDS) + OFDM IBOC sidebands at +-129..198 kHz
+    notes: Adjacent stations 200 kHz apart can merge into one wider detector box; such boxes are not labelled.
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [98.0e6]
+      rates_hz: [24.576e6, 50.0e6]
+      looks:
+        - {fc_hz: 103.0e6, rate_hz: 10.0e6, tag: upper_half}
+      gain_start_db: 40
+
+  - id: noaa_weather_radio
+    label: NOAA_weather_radio
+    name: NOAA Weather Radio (NWR) continuous NBFM voice
+    service: broadcast
+    tier: A
+    parent: lmr_vhf_high
+    freq_ranges_hz: [[162.39e6, 162.56e6]]
+    channel_centers_hz: [162.400e6, 162.425e6, 162.450e6, 162.475e6, 162.500e6, 162.525e6, 162.550e6]
+    bandwidth_hz: {min: 6.0e3, nominal: 16.0e3, max: 40.0e3}
+    temporal: continuous
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    modulation: NBFM 5 kHz deviation, 24 h continuous (1050 Hz alert tone, SAME bursts)
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [162.49e6]                # between two NWR channels: keeps the receiver DC spur off the stations
+      rates_hz: [5.0e6]
+      gain_start_db: 45
+
+  - id: atsc_tv_uhf
+    label: ATSC_TV
+    name: ATSC digital television, UHF channels 14-36 (470-608 MHz, post-repack)
+    service: broadcast
+    tier: A
+    freq_ranges_hz: [[470.0e6, 608.0e6]]
+    raster: {spacing_hz: 6.0e6, offset_hz: 473.0e6}     # channel N centre = 473 + 6 (N - 14) MHz
+    raster_multiples: 6                   # adjacent channels often merge into one detector box: accept n x 6 MHz on the grid
+    bandwidth_hz: {min: 4.8e6, nominal: 5.6e6, max: 6.2e6}  # 8-VSB occupies 5.38 MHz; ATSC 3.0 OFDM ~5.83 MHz
+    temporal: continuous
+    iq_signature: flat_top_pilot        # ATSC 1.0 pilot at lower edge + 309.441 kHz; ATSC 3.0 is flat_top
+    pilot_grids: [{grid_offset_hz: 470.0e6, spacing_hz: 6.0e6, pilot_offset_hz: 309.441e3, band_hz: [470.0e6, 608.0e6]}]  # 8-VSB pilot: lower edge + 309.441 kHz
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    notes: Channel 37 (608-614) is radio astronomy. A 6 MHz box exactly on the TV grid is TV; the pilot
+      spike (when IQ is available) separates ATSC 1.0 (8-VSB) from ATSC 3.0 (OFDM).
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [530.0e6]
+      rates_hz: [100.0e6]
+      looks:
+        - {fc_hz: 515.0e6, rate_hz: 31.25e6, tag: lower}
+        - {fc_hz: 575.0e6, rate_hz: 20.0e6, tag: upper_edgecut}
+      gain_start_db: 40
+
+  - id: atsc_tv_vhf_high
+    label: ATSC_TV
+    name: ATSC digital television, VHF-high channels 7-13 (174-216 MHz)
+    service: broadcast
+    tier: A
+    freq_ranges_hz: [[174.0e6, 216.0e6]]
+    raster: {spacing_hz: 6.0e6, offset_hz: 177.0e6}
+    raster_multiples: 6                   # adjacent channels often merge into one detector box: accept n x 6 MHz on the grid
+    bandwidth_hz: {min: 4.8e6, nominal: 5.6e6, max: 6.2e6}
+    temporal: continuous
+    iq_signature: flat_top_pilot
+    pilot_grids: [{grid_offset_hz: 174.0e6, spacing_hz: 6.0e6, pilot_offset_hz: 309.441e3, band_hz: [174.0e6, 216.0e6]}]
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [195.0e6]
+      rates_hz: [50.0e6]
+      gain_start_db: 40
+
+  - id: atsc_tv_vhf_low
+    label: ATSC_TV
+    name: ATSC digital television, VHF-low channels 2-6 (54-72, 76-88 MHz)
+    service: broadcast
+    tier: B
+    freq_ranges_hz: [[54.0e6, 72.0e6], [76.0e6, 88.0e6]]
+    channel_centers_hz: [57.0e6, 63.0e6, 69.0e6, 79.0e6, 85.0e6]
+    bandwidth_hz: {min: 4.8e6, nominal: 5.6e6, max: 6.2e6}
+    temporal: continuous
+    iq_signature: flat_top_pilot
+    pilot_grids: [{grid_offset_hz: 54.0e6, spacing_hz: 6.0e6, pilot_offset_hz: 309.441e3, band_hz: [54.0e6, 72.0e6]}, {grid_offset_hz: 76.0e6, spacing_hz: 6.0e6, pilot_offset_hz: 309.441e3, band_hz: [76.0e6, 88.0e6]}]
+    band_exclusive: true
+    requires: [channels, bandwidth, temporal]
+    notes: Few stations remain on low-VHF; 82-88 MHz (channel 6) may also carry "Franken-FM" analog audio at 87.75 MHz.
+    sweep: {default: false, antenna_group: low, centers_hz: [71.0e6], rates_hz: [40.0e6], gain_start_db: 40}
+
+  - id: am_broadcast
+    label: AM_broadcast
+    name: AM (medium-wave) broadcast, 530-1700 kHz
+    service: broadcast
+    tier: B
+    freq_ranges_hz: [[0.525e6, 1.705e6]]
+    raster: {spacing_hz: 10.0e3, offset_hz: 0.54e6}
+    bandwidth_hz: {min: 6.0e3, nominal: 10.0e3, max: 20.0e3}
+    temporal: continuous
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    notes: Below the N320 tuning range (3 MHz); the X410 tunes to 1 MHz so only the upper half is reachable.
+    sweep: {default: false, antenna_group: low, centers_hz: [1.3e6], rates_hz: [5.0e6], gain_start_db: 30}
+
+  - id: wwv_time_signal
+    label: WWV_time_signal
+    name: WWV / WWVH standard time and frequency stations
+    service: broadcast
+    tier: B
+    freq_ranges_hz: [[2.49e6, 2.51e6], [4.99e6, 5.01e6], [9.99e6, 10.01e6], [14.99e6, 15.01e6], [19.99e6, 20.01e6]]
+    channel_centers_hz: [2.5e6, 5.0e6, 10.0e6, 15.0e6, 20.0e6]
+    bandwidth_hz: {min: 1.0e3, nominal: 6.0e3, max: 12.0e3}
+    temporal: continuous
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    notes: AM with 500/600 Hz tones and BCD time code; strong at night via skywave. X410 only.
+    sweep: {default: false, antenna_group: low, centers_hz: [10.0e6], rates_hz: [5.0e6], gain_start_db: 30}
+
+  - id: cb_radio_27mhz
+    label: CB_radio_27MHz
+    name: Citizens Band radio, 40 channels 26.965-27.405 MHz
+    service: personal_radio
+    tier: B
+    freq_ranges_hz: [[26.96e6, 27.41e6]]
+    raster: {spacing_hz: 10.0e3, offset_hz: 26.965e6}
+    bandwidth_hz: {min: 3.0e3, nominal: 8.0e3, max: 12.0e3}
+    temporal: either                      # a 30 s transmission is continuous inside a 1 s capture
+    burst_s: {min: 0.3, max: 30.0}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth]
+    notes: AM / SSB voice, highway traffic; raster has gaps (27.045, 27.095, 27.145, 27.195, 27.255 are not CB channels but are still on the 10 kHz grid).
+    sweep: {default: false, antenna_group: low, centers_hz: [27.2e6], rates_hz: [5.0e6], gain_start_db: 30}
+
+  # ------------------------------------------------------------------ aviation ------------------------
+  - id: vor_ils_nav
+    label: VOR_ILS_nav
+    name: VHF aeronautical navigation beacons (VOR, ILS localizer) 108-118 MHz
+    service: aviation
+    tier: B
+    freq_ranges_hz: [[108.0e6, 117.975e6]]
+    raster: {spacing_hz: 50.0e3, offset_hz: 108.0e6}
+    bandwidth_hz: {min: 6.0e3, nominal: 20.0e3, max: 30.0e3}
+    temporal: continuous
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    notes: AM carrier with 30 Hz / 9960 Hz FM subcarrier (VOR) and 90/150 Hz tones (ILS); continuous.
+    sweep: {default: false, antenna_group: low, centers_hz: [113.0e6], rates_hz: [10.0e6], gain_start_db: 45}
+
+  - id: air_band_voice
+    label: Air_band_AM_voice
+    name: VHF aeronautical voice (tower, approach, ATIS, unicom) 118-137 MHz
+    service: aviation
+    tier: B
+    catch_all: true                       # generic entry: ACARS etc. take precedence when verified
+    freq_ranges_hz: [[118.0e6, 136.975e6]]
+    raster: {spacing_hz: 25.0e3, offset_hz: 118.0e6}
+    bandwidth_hz: {min: 4.0e3, nominal: 7.0e3, max: 12.0e3}
+    temporal: either                      # ATIS / AWOS loops are continuous, voice is bursty
+    burst_s: {min: 0.3, max: 30.0}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth]
+    modulation: AM DSB voice, 25 kHz channels (8.33 kHz spacing not used in the US)
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [127.5e6]
+      rates_hz: [20.0e6]
+      gain_start_db: 45
+
+  - id: acars_vhf
+    label: ACARS
+    name: ACARS aircraft datalink (MSK 2400 bps) on fixed VHF channels
+    service: aviation
+    tier: B
+    parent: air_band_voice
+    freq_ranges_hz: [[129.1e6, 131.9e6]]
+    channel_centers_hz: [129.125e6, 130.025e6, 130.450e6, 131.125e6, 131.550e6, 131.725e6, 131.825e6]
+    bandwidth_hz: {min: 4.0e3, nominal: 8.0e3, max: 14.0e3}
+    temporal: bursty
+    burst_s: {min: 0.1, max: 1.5}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [channels, bandwidth, burst]
+    sweep: {default: false}
+
+  - id: ssr_adsb_1090
+    label: ADS-B_Mode-S_1090
+    name: Secondary surveillance radar replies / ADS-B extended squitter at 1090 MHz
+    service: aviation
+    tier: A
+    freq_ranges_hz: [[1088.0e6, 1092.0e6]]
+    channel_centers_hz: [1090.0e6]
+    channel_tolerance_hz: 1.2e6                              # transponders are +-1 MHz by spec (ICAO Annex 10)
+    bandwidth_hz: {min: 1.0e6, nominal: 3.0e6, max: 8.0e6}   # PPM main lobe ~2 MHz; detector boxes are wider at low rates
+    temporal: bursty
+    burst_s: {min: 20.0e-6, max: 2.0e-3}                     # 64 / 120 us messages; a detector box often spans several
+    iq_signature: pulsed
+    band_exclusive: true
+    requires: [channels, bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [1091.0e6]                # 1 MHz off 1090 so the DC spur does not sit on the replies
+      rates_hz: [24.576e6]
+      gain_start_db: 45
+
+  - id: ssr_interrogation_1030
+    label: SSR_interrogation_1030
+    name: Secondary surveillance radar interrogations (Mode A/C/S uplink) at 1030 MHz
+    service: aviation
+    tier: B
+    freq_ranges_hz: [[1028.0e6, 1032.0e6]]
+    channel_centers_hz: [1030.0e6]
+    channel_tolerance_hz: 0.3e6
+    bandwidth_hz: {min: 1.0e6, nominal: 3.0e6, max: 8.0e6}
+    temporal: bursty
+    burst_s: {min: 1.0e-6, max: 1.0e-3}
+    iq_signature: pulsed
+    band_exclusive: true
+    requires: [channels, bandwidth, temporal]
+    sweep: {default: false, antenna_group: low, centers_hz: [1030.0e6], rates_hz: [24.576e6], gain_start_db: 45}
+
+  - id: dme_tacan
+    label: DME_TACAN
+    name: Distance measuring equipment / TACAN pulse pairs, 962-1213 MHz (1 MHz channels)
+    service: aviation
+    tier: B
+    freq_ranges_hz: [[962.0e6, 1024.0e6], [1036.0e6, 1084.0e6], [1096.0e6, 1213.0e6]]
+    raster: {spacing_hz: 1.0e6, offset_hz: 962.0e6}
+    bandwidth_hz: {min: 0.3e6, nominal: 1.0e6, max: 3.0e6}
+    temporal: bursty
+    burst_s: {min: 1.0e-6, max: 50.0e-6}
+    iq_signature: pulsed
+    band_exclusive: false
+    requires: [raster, bandwidth, temporal]
+    sweep: {default: false}
+
+  # ------------------------------------------------------------------ maritime / LMR -----------------
+  - id: marine_vhf
+    label: Marine_VHF
+    name: Marine VHF radiotelephone (ch 01-88), 156-162 MHz
+    service: maritime
+    tier: B
+    parent: lmr_vhf_high
+    freq_ranges_hz: [[156.0e6, 157.45e6], [160.6e6, 162.05e6]]
+    raster: {spacing_hz: 25.0e3, offset_hz: 156.025e6}
+    bandwidth_hz: {min: 6.0e3, nominal: 12.0e3, max: 18.0e3}
+    temporal: either
+    burst_s: {min: 0.3, max: 30.0}
+    iq_signature: peaked
+    band_exclusive: true                  # 156-157.45 / 160.6-162.025 MHz are maritime mobile only
+    requires: [bandwidth]
+    notes: Weather broadcasts on NWR frequencies are a separate entry (noaa_weather_radio).
+    sweep: {default: false}
+
+  - id: ais
+    label: AIS
+    name: Automatic Identification System (ships), 161.975 / 162.025 MHz GMSK bursts
+    service: maritime
+    tier: A
+    parent: marine_vhf                   # AIS is a maritime-mobile service: the marine label is a correct coarse fallback
+    freq_ranges_hz: [[161.95e6, 162.05e6]]
+    channel_centers_hz: [161.975e6, 162.025e6]
+    bandwidth_hz: {min: 8.0e3, nominal: 14.0e3, max: 25.0e3}
+    temporal: bursty
+    burst_s: {min: 20.0e-3, max: 30.0e-3}                    # one 26.67 ms TDMA slot (256 bits at 9600 bps)
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth, burst]
+    sweep: {default: false}
+
+  - id: lmr_vhf_high
+    label: Narrowband_VHF_150-174
+    name: Narrowband VHF-high 150-174 MHz (land mobile, railroad 160-161, MURS, NOAA/marine when their own entries cannot be verified)
+    service: land_mobile
+    tier: B
+    catch_all: true                       # generic entry: specific entries in the same band take precedence
+    freq_ranges_hz: [[150.8e6, 174.0e6]]
+    bandwidth_hz: {min: 5.0e3, nominal: 11.0e3, max: 25.0e3}
+    temporal: either
+    burst_s: {min: 0.2, max: 60.0}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [bandwidth]
+    notes: 7.5 / 12.5 kHz rasters differ by sub-band so no raster is checked; label stays coarse.
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [162.0e6]
+      rates_hz: [25.0e6]        # covers marine, AIS, NWR, LMR and railroad in one look
+      gain_start_db: 45
+
+  - id: lmr_uhf_450
+    label: Narrowband_UHF_450-470
+    name: Narrowband UHF 450-470 MHz (business / public safety land mobile, GMRS/FRS when its grid cannot be verified)
+    service: land_mobile
+    tier: B
+    catch_all: true                       # generic entry: specific entries in the same band take precedence
+    freq_ranges_hz: [[450.0e6, 470.0e6]]
+    bandwidth_hz: {min: 5.0e3, nominal: 11.0e3, max: 25.0e3}
+    temporal: either
+    burst_s: {min: 0.2, max: 60.0}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [460.0e6]
+      rates_hz: [25.0e6]
+      gain_start_db: 45
+
+  - id: frs_gmrs
+    label: FRS_GMRS
+    name: FRS / GMRS personal radios, 462.5500-462.7250 and 467.5500-467.7250 MHz
+    service: personal_radio
+    tier: B
+    parent: lmr_uhf_450
+    freq_ranges_hz: [[462.54e6, 462.74e6], [467.54e6, 467.74e6]]
+    raster: {spacing_hz: 12.5e3, offset_hz: 462.5625e6}
+    bandwidth_hz: {min: 5.0e3, nominal: 11.0e3, max: 20.0e3}
+    temporal: bursty
+    burst_s: {min: 0.3, max: 30.0}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [raster, bandwidth, burst]
+    sweep: {default: false}
+
+  - id: public_safety_700
+    label: P25_700MHz_public_safety
+    name: 700 MHz public safety narrowband (P25 trunking), 769-775 base / 799-805 mobile
+    service: land_mobile
+    tier: B
+    freq_ranges_hz: [[769.0e6, 775.0e6], [799.0e6, 805.0e6]]
+    bandwidth_hz: {min: 6.0e3, nominal: 11.0e3, max: 25.0e3}
+    temporal: either                      # trunking control channels are continuous
+    burst_s: {min: 0.2, max: 60.0}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth]
+    modulation: P25 Phase 1 C4FM 12.5 kHz / Phase 2 TDMA
+    sweep: {default: false, antenna_group: low, centers_hz: [772.0e6], rates_hz: [10.0e6], gain_start_db: 45}
+
+  - id: lmr_800_trunked
+    label: LMR_800MHz_trunked
+    name: 800 MHz trunked land mobile (P25 / EDACS / analog), 851-869 base, 806-824 mobile
+    service: land_mobile
+    tier: B
+    catch_all: true                       # generic entry: specific entries in the same band take precedence
+    freq_ranges_hz: [[851.0e6, 869.0e6], [806.0e6, 824.0e6]]
+    raster: {spacing_hz: 12.5e3, offset_hz: 851.0125e6}
+    bandwidth_hz: {min: 6.0e3, nominal: 12.0e3, max: 30.0e3}
+    temporal: either
+    burst_s: {min: 0.2, max: 60.0}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [860.0e6]
+      rates_hz: [25.0e6]
+      gain_start_db: 45
+
+  - id: paging_929
+    label: Pager_FLEX_POCSAG_929
+    name: One-way paging (FLEX / POCSAG), 929-932 MHz, high power
+    service: paging
+    tier: A
+    freq_ranges_hz: [[929.0e6, 932.0e6]]
+    raster: {spacing_hz: 25.0e3, offset_hz: 929.0125e6}
+    bandwidth_hz: {min: 10.0e3, nominal: 20.0e3, max: 35.0e3}
+    temporal: either                      # busy paging transmitters key for many seconds
+    burst_s: {min: 0.05, max: 20.0}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth]
+    notes: 4-level FSK, often the strongest narrowband signal in a city; 152 MHz / 454 MHz paging also exists.
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [930.3e6]                 # half a channel off the 25 kHz paging raster
+      rates_hz: [5.0e6]
+      gain_start_db: 40
+
+  # ------------------------------------------------------------------ cellular (licensed, exclusive) --
+  # Downlinks are always on (reference signals / SSB) -> continuous flat-top carriers of 1.4-20 MHz (LTE)
+  # or 5-100 MHz (NR). Uplinks are bursty partial-band allocations from handsets, low duty.
+  - id: cell_600_dl
+    label: cellular_downlink_600
+    name: Cellular downlink, 600 MHz band (NR n71 / LTE B71), 617-652 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[617.0e6, 652.0e6]]
+    bandwidth_hz: {min: 1.0e6, nominal: 10.0e6, max: 35.0e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [634.5e6]
+      rates_hz: [40.0e6]
+      gain_start_db: 40
+
+  - id: cell_600_ul
+    label: cellular_uplink_600
+    name: Cellular uplink, 600 MHz band (NR n71 / LTE B71), 663-698 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[663.0e6, 698.0e6]]
+    bandwidth_hz: {min: 100.0e3, nominal: 2.0e6, max: 35.0e6}
+    temporal: either
+    burst_s: {min: 0.5e-3, max: 1.0}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep: {default: false, antenna_group: low, centers_hz: [680.5e6], rates_hz: [40.0e6], gain_start_db: 50}
+
+  - id: cell_700_dl
+    label: cellular_downlink_700
+    name: Cellular downlink, 700 MHz (LTE B12/B17 728-746, B13 746-756, B14 FirstNet 758-768)
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[728.0e6, 757.0e6], [758.0e6, 768.0e6]]
+    bandwidth_hz: {min: 1.0e6, nominal: 9.0e6, max: 30.0e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [748.0e6]
+      rates_hz: [40.0e6]
+      looks:
+        - {fc_hz: 742.0e6, rate_hz: 31.25e6, tag: b12_b13}
+      gain_start_db: 40
+
+  - id: cell_700_ul
+    label: cellular_uplink_700
+    name: Cellular uplink, 700 MHz (LTE B12/B17 698-716, B13 777-787, B14 788-798)
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[698.0e6, 716.0e6], [777.0e6, 798.0e6]]
+    bandwidth_hz: {min: 100.0e3, nominal: 1.5e6, max: 20.0e6}
+    temporal: either
+    burst_s: {min: 0.5e-3, max: 1.0}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [707.0e6]
+      rates_hz: [20.0e6]
+      gain_start_db: 50
+
+  - id: cell_850_dl
+    label: cellular_downlink_850
+    name: Cellular downlink, 850 MHz (LTE/NR band 5 / n5), 869-894 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[869.0e6, 894.0e6]]
+    bandwidth_hz: {min: 1.0e6, nominal: 9.0e6, max: 25.0e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [881.5e6]
+      rates_hz: [25.0e6, 50.0e6]
+      looks:
+        - {fc_hz: 890.0e6, rate_hz: 12.5e6, tag: upper_edgecut}
+      gain_start_db: 40
+
+  - id: cell_850_ul
+    label: cellular_uplink_850
+    name: Cellular uplink, 850 MHz (LTE/NR band 5 / n5), 824-849 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[824.0e6, 849.0e6]]
+    bandwidth_hz: {min: 100.0e3, nominal: 1.5e6, max: 25.0e6}
+    temporal: either
+    burst_s: {min: 0.5e-3, max: 1.0}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [836.5e6]
+      rates_hz: [25.0e6]
+      looks:
+        - {fc_hz: 830.0e6, rate_hz: 10.24e6, tag: narrow}
+        - {fc_hz: 845.0e6, rate_hz: 61.44e6, tag: wide_ul_dl}
+      gain_start_db: 50
+
+  - id: cell_1900_dl
+    label: cellular_downlink_1900
+    name: Cellular downlink, PCS 1900 (LTE/NR band 2 / 25 / n25), 1930-1995 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[1930.0e6, 1995.0e6]]
+    bandwidth_hz: {min: 1.0e6, nominal: 9.0e6, max: 40.0e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [1960.0e6]
+      rates_hz: [61.44e6]
+      gain_start_db: 40
+
+  - id: cell_1900_ul
+    label: cellular_uplink_1900
+    name: Cellular uplink, PCS 1900 (band 2 / 25), 1850-1915 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[1850.0e6, 1915.0e6]]
+    bandwidth_hz: {min: 100.0e3, nominal: 1.5e6, max: 40.0e6}
+    temporal: either
+    burst_s: {min: 0.5e-3, max: 1.0}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep: {default: false, antenna_group: high, centers_hz: [1882.5e6], rates_hz: [61.44e6], gain_start_db: 50}
+
+  - id: cell_aws_dl
+    label: cellular_downlink_AWS
+    name: Cellular downlink, AWS 2100 (LTE/NR band 4 / 66 / n66), 2110-2200 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[2110.0e6, 2200.0e6]]
+    bandwidth_hz: {min: 1.0e6, nominal: 9.0e6, max: 45.0e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth, temporal]
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [2132.0e6]
+      rates_hz: [50.0e6]
+      gain_start_db: 40
+
+  - id: cell_aws_ul
+    label: cellular_uplink_AWS
+    name: Cellular uplink, AWS (band 4 / 66), 1710-1780 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[1710.0e6, 1780.0e6]]
+    bandwidth_hz: {min: 100.0e3, nominal: 1.5e6, max: 45.0e6}
+    temporal: either
+    burst_s: {min: 0.5e-3, max: 1.0}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep: {default: false, antenna_group: high, centers_hz: [1745.0e6], rates_hz: [100.0e6], gain_start_db: 50}
+
+  - id: cell_2500_tdd
+    label: cellular_TDD_2500
+    name: Cellular TDD, 2.5 GHz (LTE B41 / NR n41, BRS/EBS), 2496-2690 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[2496.0e6, 2690.0e6]]
+    bandwidth_hz: {min: 4.0e6, nominal: 20.0e6, max: 100.0e6}
+    temporal: tdd
+    burst_s: {min: 0.5e-3, max: 5.0e-3}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [2545.0e6, 2640.0e6]
+      rates_hz: [100.0e6]
+      gain_start_db: 40
+
+  - id: cbrs_3550
+    label: CBRS_3.5GHz_TDD
+    name: Citizens Broadband Radio Service (LTE B48 / NR n48, TDD), 3550-3700 MHz
+    service: cellular
+    tier: B
+    freq_ranges_hz: [[3550.0e6, 3700.0e6]]
+    bandwidth_hz: {min: 4.0e6, nominal: 20.0e6, max: 40.0e6}
+    temporal: tdd
+    burst_s: {min: 0.5e-3, max: 5.0e-3}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [3625.0e6]
+      rates_hz: [200.0e6]
+      gain_start_db: 45
+
+  - id: cell_cband_tdd
+    label: cellular_TDD_C-band
+    name: Cellular TDD, 3.45 GHz and C-band (NR n77), 3450-3550 and 3700-3980 MHz
+    service: cellular
+    tier: A
+    freq_ranges_hz: [[3450.0e6, 3550.0e6], [3700.0e6, 3980.0e6]]
+    bandwidth_hz: {min: 10.0e6, nominal: 60.0e6, max: 100.0e6}
+    temporal: tdd
+    burst_s: {min: 0.5e-3, max: 5.0e-3}
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [bandwidth]
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [3500.0e6, 3800.0e6, 3900.0e6]
+      rates_hz: [200.0e6]
+      gain_start_db: 45
+
+  - id: dect_6_0
+    label: DECT_6.0_cordless
+    name: DECT 6.0 cordless phones, 1920-1930 MHz (5 carriers, 1.728 MHz, TDMA 10 ms frames)
+    service: unlicensed
+    tier: B
+    freq_ranges_hz: [[1920.0e6, 1930.0e6]]
+    channel_centers_hz: [1921.536e6, 1923.264e6, 1924.992e6, 1926.720e6, 1928.448e6]
+    bandwidth_hz: {min: 1.0e6, nominal: 1.4e6, max: 1.9e6}
+    temporal: either                      # base-station dummy bearer is persistent (one slot per 10 ms)
+    burst_s: {min: 0.3e-3, max: 0.5e-3}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [channels, bandwidth]
+    sweep: {default: false, antenna_group: high, centers_hz: [1925.0e6], rates_hz: [12.5e6], gain_start_db: 50}
+
+  # ------------------------------------------------------------------ 900 MHz ISM --------------------
+  - id: ism_900_generic
+    label: ISM_900MHz_device
+    name: 902-928 MHz ISM devices (FHSS utility meters, sensors, Wi-Fi HaLow, RFID)
+    service: unlicensed
+    tier: B
+    catch_all: true                       # generic entry: specific entries in the same band take precedence
+    freq_ranges_hz: [[902.0e6, 928.0e6]]
+    bandwidth_hz: {min: 20.0e3, nominal: 200.0e3, max: 2.0e6}
+    temporal: bursty
+    burst_s: {min: 0.2e-3, max: 2.0}
+    iq_signature: any
+    band_exclusive: false
+    requires: [bandwidth, temporal]
+    notes: Coarse catch-all. The look-up prefers the specific entries (LoRa, Z-Wave) when their grids match.
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [915.0e6]
+      rates_hz: [30.72e6]
+      looks:
+        - {fc_hz: 920.0e6, rate_hz: 12.5e6, tag: narrow}
+      gain_start_db: 45
+
+  - id: lora_us915
+    label: LoRa_US915
+    name: LoRa / LoRaWAN US902-928 (125 kHz uplink channels, 500 kHz uplink / downlink channels)
+    service: unlicensed
+    tier: B
+    parent: ism_900_generic              # coarser label that is still correct when the LoRa grid cannot be verified
+    freq_ranges_hz: [[902.0e6, 928.0e6]]
+    raster: {spacing_hz: 200.0e3, offset_hz: 902.3e6}        # 64 x 125 kHz uplink channels 902.3-914.9
+    channel_centers_hz: [903.0e6, 904.6e6, 906.2e6, 907.8e6, 909.4e6, 911.0e6, 912.6e6, 914.2e6,   # 8 x 500 kHz UL
+                         923.3e6, 923.9e6, 924.5e6, 925.1e6, 925.7e6, 926.3e6, 926.9e6, 927.5e6]   # 8 x 500 kHz DL
+    bandwidth_sets_hz: [[100.0e3, 160.0e3], [200.0e3, 300.0e3], [400.0e3, 600.0e3]]
+    bandwidth_hz: {min: 100.0e3, nominal: 125.0e3, max: 600.0e3}
+    temporal: bursty
+    burst_s: {min: 20.0e-3, max: 3.0}
+    iq_signature: chirp
+    band_exclusive: false
+    requires: [raster, bandwidth, burst]
+    sweep: {default: false}
+
+  - id: zwave_908
+    label: Z-Wave_908
+    name: Z-Wave home automation, 908.42 MHz (9.6/40 kbps) and 916.0 MHz (100 kbps)
+    service: unlicensed
+    tier: B
+    parent: ism_900_generic
+    freq_ranges_hz: [[908.3e6, 908.55e6], [915.85e6, 916.15e6]]
+    channel_centers_hz: [908.42e6, 916.0e6]
+    bandwidth_hz: {min: 20.0e3, nominal: 60.0e3, max: 250.0e3}
+    temporal: bursty
+    burst_s: {min: 1.0e-3, max: 60.0e-3}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [channels, bandwidth, burst]
+    sweep: {default: false}
+
+  # ------------------------------------------------------------------ 2.4 GHz ISM --------------------
+  - id: wifi_2g4
+    label: WiFi_2.4GHz
+    name: IEEE 802.11 b/g/n/ax at 2.4 GHz (channels 1-11, 20 MHz; HT40 bonding)
+    service: unlicensed
+    tier: A
+    freq_ranges_hz: [[2400.0e6, 2483.5e6]]
+    channel_centers_hz: [2412.0e6, 2417.0e6, 2422.0e6, 2427.0e6, 2432.0e6, 2437.0e6, 2442.0e6, 2447.0e6, 2452.0e6, 2457.0e6, 2462.0e6]
+    bandwidth_sets_hz: [[14.0e6, 22.0e6], [34.0e6, 42.0e6]]  # 20 MHz (OFDM 16.6 MHz occupied; DSSS 22) and 40 MHz
+    bandwidth_hz: {min: 14.0e6, nominal: 18.0e6, max: 42.0e6}
+    temporal: bursty
+    burst_s: {min: 30.0e-6, max: 10.0e-3}
+    iq_signature: flat_top
+    band_exclusive: false
+    requires: [channels, bandwidth]
+    notes: Most networks sit on channels 1, 6, 11 (2412/2437/2462). A 10 or 20 MHz OFDM burst OFF this
+      channel plan (video links, drones) stays "signal".
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [2437.0e6]
+      rates_hz: [100.0e6]
+      looks:
+        - {fc_hz: 2450.0e6, rate_hz: 200.0e6, tag: wide}
+        - {fc_hz: 2412.0e6, rate_hz: 40.0e6, tag: ch1}
+        - {fc_hz: 2462.0e6, rate_hz: 20.0e6, tag: ch11}
+        - {fc_hz: 2442.0e6, rate_hz: 61.44e6, tag: oddrate}
+        - {fc_hz: 2425.0e6, rate_hz: 12.5e6, tag: between_ch3_ch5}
+      gain_start_db: 35
+
+  - id: bluetooth_classic
+    label: Bluetooth_BR_EDR
+    name: Bluetooth BR/EDR (1 MHz channels 2402-2480, 625 us slots, 1600 hops/s)
+    service: unlicensed
+    tier: B
+    freq_ranges_hz: [[2401.0e6, 2481.0e6]]
+    raster: {spacing_hz: 1.0e6, offset_hz: 2402.0e6}
+    bandwidth_hz: {min: 0.6e6, nominal: 1.0e6, max: 1.4e6}
+    temporal: bursty
+    burst_s: {min: 0.1e-3, max: 3.2e-3}                      # 1-, 3-, 5-slot packets
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [raster, bandwidth, burst]
+    sweep: {default: false}
+
+  - id: bluetooth_le
+    label: Bluetooth_LE
+    name: Bluetooth Low Energy (2 MHz channels 2402 + 2k MHz; advertising on 2402 / 2426 / 2480)
+    service: unlicensed
+    tier: B
+    freq_ranges_hz: [[2401.0e6, 2481.0e6]]
+    raster: {spacing_hz: 2.0e6, offset_hz: 2402.0e6}
+    bandwidth_hz: {min: 1.3e6, nominal: 2.0e6, max: 2.7e6}
+    temporal: bursty
+    burst_s: {min: 0.08e-3, max: 2.5e-3}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [raster, bandwidth, burst]
+    sweep: {default: false}
+
+  - id: zigbee_802154
+    label: Zigbee_802.15.4
+    name: IEEE 802.15.4 / Zigbee / Thread, channels 11-26 (2405 + 5 (k-11) MHz, 2 MHz OQPSK)
+    service: unlicensed
+    tier: B
+    freq_ranges_hz: [[2403.0e6, 2482.0e6]]
+    raster: {spacing_hz: 5.0e6, offset_hz: 2405.0e6}
+    bandwidth_hz: {min: 1.6e6, nominal: 2.2e6, max: 3.2e6}
+    temporal: bursty
+    burst_s: {min: 0.3e-3, max: 5.0e-3}
+    iq_signature: flat_top
+    band_exclusive: false
+    requires: [raster, bandwidth, burst]
+    notes: Shares the 2 MHz-wide / on-grid look with BLE where the 5 MHz and 2 MHz grids coincide
+      (2405, 2415, 2425 ... are odd-MHz so they do NOT coincide with the even-MHz BLE grid).
+    sweep: {default: false}
+
+  - id: microwave_oven
+    label: Microwave_oven
+    name: Consumer microwave oven magnetron leakage (2.45 GHz, 60 Hz half-wave duty)
+    service: incidental
+    tier: C                               # too easily confused with Wi-Fi / video-link bursts: informational only
+    freq_ranges_hz: [[2430.0e6, 2475.0e6]]
+    bandwidth_hz: {min: 3.0e6, nominal: 15.0e6, max: 40.0e6}
+    temporal: bursty
+    burst_s: {min: 5.0e-3, max: 12.0e-3}                     # ~8.3 ms on / 8.3 ms off
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [bandwidth, burst]
+    notes: Drifting, chirping, off any channel grid; identified by the 8.3 ms mains half-cycle period.
+    sweep: {default: false}
+
+  # ------------------------------------------------------------------ 5 / 6 GHz unlicensed -----------
+  - id: wifi_5g
+    label: WiFi_5GHz
+    name: IEEE 802.11 a/n/ac/ax at 5 GHz (U-NII-1/2A/2C/3; 20/40/80/160 MHz)
+    service: unlicensed
+    tier: A
+    freq_ranges_hz: [[5150.0e6, 5350.0e6], [5470.0e6, 5730.0e6], [5725.0e6, 5850.0e6]]
+    # 20 MHz centres 5000 + 5 ch (ch 36..64, 100..144, 149..165); 40/80/160 MHz bonded centres as per 802.11 Annex E
+    channel_centers_hz: [5180.0e6, 5200.0e6, 5220.0e6, 5240.0e6, 5260.0e6, 5280.0e6, 5300.0e6, 5320.0e6,
+                         5500.0e6, 5520.0e6, 5540.0e6, 5560.0e6, 5580.0e6, 5600.0e6, 5620.0e6, 5640.0e6, 5660.0e6, 5680.0e6, 5700.0e6, 5720.0e6,
+                         5745.0e6, 5765.0e6, 5785.0e6, 5805.0e6, 5825.0e6,
+                         5190.0e6, 5230.0e6, 5270.0e6, 5310.0e6, 5510.0e6, 5550.0e6, 5590.0e6, 5630.0e6, 5670.0e6, 5710.0e6, 5755.0e6, 5795.0e6,  # 40 MHz
+                         5210.0e6, 5290.0e6, 5530.0e6, 5610.0e6, 5690.0e6, 5775.0e6,                                                              # 80 MHz
+                         5250.0e6, 5570.0e6]                                                                                                     # 160 MHz
+    bandwidth_sets_hz: [[14.0e6, 22.0e6], [34.0e6, 42.0e6], [70.0e6, 84.0e6], [150.0e6, 165.0e6]]
+    bandwidth_hz: {min: 14.0e6, nominal: 18.0e6, max: 165.0e6}
+    temporal: bursty
+    burst_s: {min: 30.0e-6, max: 10.0e-3}
+    iq_signature: flat_top
+    band_exclusive: false
+    requires: [channels, bandwidth]
+    notes: Bonded (40/80/160 MHz) transmissions are centred between the 20 MHz channels, so the channel
+      list carries every bonding centre; the bandwidth set must agree with the centre type.
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [5200.0e6]
+      rates_hz: [100.0e6]
+      looks:
+        - {fc_hz: 5180.0e6, rate_hz: 20.0e6, tag: ch36}
+        - {fc_hz: 5500.0e6, rate_hz: 200.0e6, tag: unii2e}
+        - {fc_hz: 5775.0e6, rate_hz: 62.5e6, tag: unii3}
+      gain_start_db: 40
+
+  - id: wifi_6e
+    label: WiFi_6GHz
+    name: IEEE 802.11ax/be Wi-Fi 6E / 7 at 6 GHz (U-NII-5..8, 5925-7125 MHz; 20 MHz centres 5950 + 5 ch)
+    service: unlicensed
+    tier: A
+    freq_ranges_hz: [[5925.0e6, 7125.0e6]]
+    raster: {spacing_hz: 20.0e6, offset_hz: 5955.0e6}        # 20 MHz channels 1, 5, 9 ... 233; bonded centres fall on 10 MHz offsets
+    bandwidth_sets_hz: [[14.0e6, 22.0e6], [34.0e6, 42.0e6], [70.0e6, 84.0e6], [150.0e6, 165.0e6], [300.0e6, 325.0e6]]
+    bandwidth_hz: {min: 14.0e6, nominal: 18.0e6, max: 325.0e6}
+    temporal: bursty
+    burst_s: {min: 30.0e-6, max: 10.0e-3}
+    iq_signature: flat_top
+    band_exclusive: false
+    requires: [raster, bandwidth]
+    notes: X410 only (N320 tunes to 6 GHz). Low-power indoor APs; mostly empty outdoors.
+    radio_min: x410
+    sweep: {default: false, antenna_group: high, centers_hz: [6000.0e6, 6500.0e6], rates_hz: [200.0e6], gain_start_db: 45}
+
+  # ------------------------------------------------------------------ short-range / remote control ----
+  - id: ism_433
+    label: ISM_433MHz_remote
+    name: 433 MHz remote controls, sensors, TPMS (OOK / FSK bursts around 433.92 MHz)
+    service: unlicensed
+    tier: B
+    freq_ranges_hz: [[433.05e6, 434.79e6]]
+    bandwidth_hz: {min: 10.0e3, nominal: 100.0e3, max: 500.0e3}
+    temporal: bursty
+    burst_s: {min: 5.0e-3, max: 1.0}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [bandwidth, burst]
+    sweep: {default: false, antenna_group: low, centers_hz: [433.92e6], rates_hz: [5.0e6], gain_start_db: 50}
+
+  - id: ism_315
+    label: Keyfob_TPMS_315MHz
+    name: 315 MHz key fobs, garage remotes, tyre-pressure sensors (ASK / FSK bursts)
+    service: unlicensed
+    tier: B
+    freq_ranges_hz: [[314.5e6, 315.5e6]]
+    bandwidth_hz: {min: 10.0e3, nominal: 60.0e3, max: 400.0e3}
+    temporal: bursty
+    burst_s: {min: 5.0e-3, max: 1.0}
+    iq_signature: peaked
+    band_exclusive: false
+    requires: [bandwidth, burst]
+    sweep: {default: false, antenna_group: low, centers_hz: [315.0e6], rates_hz: [5.0e6], gain_start_db: 50}
+
+  # ------------------------------------------------------------------ radar / satellite --------------
+  - id: l_band_radar
+    label: L-band_radar_ATC
+    name: Long-range air route surveillance radar (ARSR / FPS), 1215-1400 MHz
+    service: radar
+    tier: B
+    freq_ranges_hz: [[1215.0e6, 1400.0e6]]
+    bandwidth_hz: {min: 0.5e6, nominal: 2.0e6, max: 10.0e6}
+    temporal: bursty
+    burst_s: {min: 1.0e-6, max: 200.0e-6}
+    iq_signature: pulsed
+    band_exclusive: false
+    requires: [bandwidth, burst]
+    notes: Pulses arrive in beam-sweeps every 4-12 s, so a 20 ms frame shows either nothing or a pulse train.
+    sweep:
+      default: true
+      antenna_group: low
+      centers_hz: [1350.0e6]
+      rates_hz: [25.0e6]
+      gain_start_db: 50
+
+  - id: s_band_radar
+    label: S-band_radar
+    name: Airport surveillance / weather radar (ASR-9/11, NEXRAD), 2700-3000 MHz
+    service: radar
+    tier: B
+    freq_ranges_hz: [[2700.0e6, 3000.0e6]]
+    bandwidth_hz: {min: 0.5e6, nominal: 2.0e6, max: 10.0e6}
+    temporal: bursty
+    burst_s: {min: 0.5e-6, max: 100.0e-6}
+    iq_signature: pulsed
+    band_exclusive: false
+    requires: [bandwidth, burst]
+    sweep: {default: false, antenna_group: high, centers_hz: [2800.0e6], rates_hz: [200.0e6], gain_start_db: 45}
+
+  - id: sirius_xm
+    label: SiriusXM_satellite_radio
+    name: SiriusXM satellite digital audio radio (satellite + terrestrial repeaters), 2320-2345 MHz
+    service: satellite
+    tier: B
+    freq_ranges_hz: [[2320.0e6, 2345.0e6]]
+    channel_centers_hz: [2322.293e6, 2326.25e6, 2330.207e6, 2333.4725e6, 2338.75e6, 2344.0275e6]
+    bandwidth_hz: {min: 1.5e6, nominal: 4.0e6, max: 5.0e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [channels, bandwidth, temporal]
+    notes: Satellite downlinks are weak at ground level; the OFDM terrestrial repeaters (2326.25 / 2338.75) are strong in cities.
+    sweep:
+      default: true
+      antenna_group: high
+      centers_hz: [2332.5e6]
+      rates_hz: [31.25e6]
+      gain_start_db: 50
+
+  - id: iridium
+    label: Iridium_L-band
+    name: Iridium satellite phone downlink/uplink, 1616-1626.5 MHz (41.667 kHz channels, 8.28 ms bursts)
+    service: satellite
+    tier: B
+    freq_ranges_hz: [[1616.0e6, 1626.5e6]]
+    raster: {spacing_hz: 41.667e3, offset_hz: 1616.0e6}
+    bandwidth_hz: {min: 25.0e3, nominal: 38.0e3, max: 50.0e3}
+    temporal: bursty
+    burst_s: {min: 6.0e-3, max: 10.0e-3}
+    iq_signature: peaked
+    band_exclusive: true
+    requires: [bandwidth, burst]
+    sweep: {default: false, antenna_group: high, centers_hz: [1621.25e6], rates_hz: [12.5e6], gain_start_db: 55}
+
+  - id: gps_l1
+    label: GPS_L1
+    name: GPS L1 C/A (1575.42 MHz, 2.046 MHz) - below the noise floor, not detectable by an energy detector
+    service: satellite
+    tier: C
+    freq_ranges_hz: [[1574.0e6, 1577.0e6]]
+    channel_centers_hz: [1575.42e6]
+    bandwidth_hz: {min: 1.8e6, nominal: 2.046e6, max: 20.5e6}
+    temporal: continuous
+    iq_signature: flat_top
+    band_exclusive: true
+    requires: [channels, bandwidth, temporal]
+    notes: Listed so sweeps can include a known-empty look; any energy here is interference or a repeater.
+    sweep: {default: false, antenna_group: high, centers_hz: [1575.42e6], rates_hz: [10.0e6], gain_start_db: 60}

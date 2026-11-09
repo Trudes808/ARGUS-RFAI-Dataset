@@ -17,6 +17,12 @@ The pipeline has three stages:
    per-waveform ground-truth annotations back into the SigMF meta. This is how every
    published label was made; see **[`composition/DECODE.md`](composition/DECODE.md)**.
 
+A fourth, independent part, **[`DataCollectionScripts/`](DataCollectionScripts/README.md)**, is for
+anyone who wants to see how the detector behaves in *their* environment: a manifest of the common US
+over-the-air waveforms, a USRP sweep collector that records them the way the detector's stress set was
+recorded, and a look-up that attaches coarse estimated labels (`~FM_broadcast`, `~ATSC_TV`, ...) to the
+detector's output.
+
 ```
  MATLAB                                   Python (conda: holoscan_compose)
  ────────────────────────────────        ──────────────────────────────────────
@@ -165,6 +171,29 @@ python decode.py <capture>.sigmf-data <capture>.sigmf-meta \
 Overwrites the meta's annotations in place. Full options, the annotation schema, and how to
 check a re-decode against the published labels: [`composition/DECODE.md`](composition/DECODE.md).
 
+### Step 4 (optional): sweep your own environment and label the detections
+
+```bash
+cd DataCollectionScripts
+python3 collect_common_waveforms.py --list                              # 46 default looks over the common US bands
+python3 collect_common_waveforms.py --out ~/captures/site_a --site "roof, Austin TX" --antenna discone
+#   fixed frequencies / rates instead of the manifest plan:
+python3 collect_common_waveforms.py --out ~/captures/custom --freqs 98e6,881.5e6,2437e6 --rates 25e6,100e6
+```
+
+Then run the detector over the sweep from the Holohub-Signal-Detection checkout (its README §3,
+`sudo python3 preprocess_dataset.py ~/captures/site_a --recursive --detector cuda_dino_finetuned`) and,
+optionally, give every detection a coarse estimated label where one common waveform matches with high
+confidence (everything else stays `signal`):
+
+```bash
+python3 common_waveforms_look_up.py ~/captures/site_a_preprocessed      # writes core:label "~FM_broadcast" etc.
+python3 plot_look_up_overlays.py ~/captures/site_a_preprocessed         # waterfall + detector boxes + labels, one PNG per capture
+```
+
+Details, options, the manifest schema, the accuracy tests and an example figure of nine bands:
+[`DataCollectionScripts/README.md`](DataCollectionScripts/README.md).
+
 ## 3. Repository layout
 
 | Path | Purpose |
@@ -181,6 +210,12 @@ check a re-decode against the published labels: [`composition/DECODE.md`](compos
 | `composition/metadata_modem.py`, `zc_sync.py`, `geometry.py`, `protocol.py` | OFDM metadata modem, ZC sync, frequency plan, shared TX/RX layout. |
 | `composition/decode_waveforms_24576.m`, `decode_lte_24576.m` | Per-waveform receive chains → BER (digital, LTE) or FM audio quality. |
 | `composition/export_fm_audio.m` | Listenable multi-second FM WAVs through the same FM chain. |
+| `DataCollectionScripts/common_ota_waveforms_manifest_usa.yaml` | 55 common US waveforms: bands, rasters, bandwidths, temporal behaviour, default sweep looks. |
+| `DataCollectionScripts/collect_common_waveforms.py` | Manifest-driven USRP sweep collector (SigMF out, gain probe, fixed `--freqs/--rates` override). |
+| `DataCollectionScripts/common_waveforms_look_up.py` | Coarse `~label` estimates for detector output from the manifest (snippets, SigMF or mask arrays). |
+| `DataCollectionScripts/plot_look_up_overlays.py` | Waterfall figures with the detector boxes and `~labels` drawn on, per capture or as a montage of bands. |
+| `DataCollectionScripts/n320_stress_matrix/` | The scripts that recorded the N320 detector stress set (kept verbatim). |
+| `DataCollectionScripts/tests/` | Synthetic and OTA accuracy tests of the look-up (reports regenerate into the git-ignored `tests/results/`). |
 
 Not committed (regenerable or published in TDR; see `.gitignore`):
 `generated_waveforms_24576/`, `composition/composites/`, `recovered_fm_audio/`.
