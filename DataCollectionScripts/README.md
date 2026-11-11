@@ -243,3 +243,53 @@ ci16, metadata with the band label and the recording statistics); `capture_n320_
 30 looks of the stress set with a per-band gain probe. They are specific to that bench (device address,
 serial, antenna assignment, author) and are kept as the record of how the published test captures were made;
 `collect_common_waveforms.py` generalises them.
+
+## 7. ELINT-style classification (branch `lut_classification_experiment`)
+
+The look-up of §3 identifies emissions by band, box width and coarse timing. This branch adds the systematic
+version: a **library** of physical-layer descriptors taken from the open standards, a **measurement** step
+that extracts a signal descriptor word (SDW) from the IQ of every detected emission, and a **matcher** that
+scores the SDW against the library field by field. The design notes are in
+`notes/lut_classification_experiment_plan.md`, the results in `notes/lut_experiment_results.md`.
+
+| file | role |
+|---|---|
+| `lut_library_usa.yaml` | Descriptor layer on top of the manifest: for each entry the modulation class, symbol / chip rate, modulation index, deviation, OFDM subcarrier spacing and cyclic prefix, chirp parameters, pulse width, burst length, intervals, gaps, frame / beacon periods, pulse pairs, duty, carrier line, demodulated tones, HD sidebands and hopping, each with a tolerance and the standard it comes from (`source`). Entries new to the library (UAT 978, VDL Mode 2, ATSC 3.0, amateur bands, MURS, WMTS, radiosondes, WCS, LAA, Inmarsat, Globalstar, TDWR, radio altimeters, FPV video, drones, 300-400 MHz remotes, HF broadcasting, VHF satellites) are defined here in full. `variants` describe sub-types (P25 / DMR / NXDN / analogue, LTE 15 kHz / NR 30 kHz, DSSS / OFDM / HE Wi-Fi, BLE 1M / 2M, VOR / ILS). `manifest_io.load_library()` merges the two files. |
+| `measure_descriptors.py` | The SDW: band extraction (overlap-save FFT, 2.5x the box for spectral work, 1.15x for everything from the instantaneous frequency), on/off envelope at a fine (pulse) and a coarse (packet) scale with 50 % edge refinement, consecutive-interval and gap histograms, interval peaks per burst-duration class, envelope-autocorrelation periods, OFDM cyclic-prefix correlation (Tu, then Ts and CP from the metric's periodicity), symbol-rate lines of |y|², y², y⁴ and of the frequency transitions, envelope statistics corrected for SNR, instantaneous-frequency levels and deviation, chirp slope, carrier line, band-edge steepness, FM- and AM-demodulated tones, NRSC-5 sidebands, and a band-level pass over all bursts of a capture (hop rate, SIFS+ACK pairs, BLE advertising triplets). |
+| `lut_classify.py` | The matcher: the v1 score x descriptor memberships. Every field is verified (measured and matching), contradicting (measured and not matching, a penalty) or unmeasured (neutral); the confidence is `1 - (1 - v1 x penalty) x (1 - verified share)`, so a strongly verified descriptor lifts a weak band score and a contradiction sinks a strong one. Labels need the tier threshold, the manifest `requires` features, `requires_descriptors` verified fields (one in shared bands) and a margin over the runner-up; a verified descriptor breaks ties against unverified competitors. Variants refine the label (`~Narrowband_VHF_150-174/P25`). Writes `lut_regions.csv`, `lut_summary.json`, `sdw_<capture>.json` and, like v1, the labels into the SigMF annotations plus `argus:sdw`. |
+| `synth_lut_scenes.py`, `synth_modulators.py` | Synthetic captures for every entry with a `synth` recipe, generated from the entry's own descriptor (CPM/GFSK, FM stereo multiplex with pilot/RDS/HD sidebands, AM, OFDM with any numerology and TDD pattern, SC-FDMA bursts, 8-VSB with pilot, PPM/pulse trains, DME pairs, radar scans, LoRa chirps, O-QPSK, Barker DSSS, OOK, magnetrons) at a legal channel, a sweep sample rate and a random SNR, with the ground-truth boxes written as annotations. |
+| `tests/test_measure_synthetic.py` | Unit test of the measurement: 17 emissions with known parameters (BLE, Wi-Fi, LTE, NR TDD, FM, FM+HD, NBFM, AM, VOR, C4FM, POCSAG, DECT, ADS-B, DME, LoRa, 8-VSB, Zigbee). |
+| `tests/test_lut_synthetic.py` | End-to-end on synthetic captures: label outcome and verified fields per entry (`tests/results/lut_synthetic_eval.md`, `lut_synthetic_rows.csv`). |
+| `tests/evaluate_lut_on_captures.py` | Real captures: plausibility of every label against the capture span, share of labels with verified descriptors, and the measured-parameter distributions per label next to the synthetic ones (`tests/results/lut_real_eval.md`). |
+
+```bash
+python3 lut_classify.py ~/captures/site_a_preprocessed                          # SDW + library match, labels written
+python3 lut_classify.py <folder of capture folders> --masks M12S --no-write      # stress set from mask arrays
+python3 measure_descriptors.py <capture>.sigmf-meta --out sdw.json               # SDWs only
+python3 synth_lut_scenes.py --out /tmp/lut_synth --draws 3                       # one capture per entry and draw
+python3 tests/test_lut_synthetic.py --out /tmp/lut_synth --draws 3               # generate + classify + score
+python3 tests/evaluate_lut_on_captures.py --report ~/captures/site_a_preprocessed
+python3 collect_common_waveforms.py --library lut_library_usa.yaml --entries uat_978,dect_6_0 ...   # looks for library-only entries
+```
+
+![Detector boxes and ELINT-style labels on six looks of the 2026-11-10 sweep](figures/lut_overlays_sweep_m12s.jpg)
+
+*Six looks of the TX/RX sweep with the M12-S detector boxes and the labels `lut_classify.py` wrote into the annotations
+(`plot_look_up_overlays.py --written-labels`): FM stations with the 19 kHz pilot verified (`/analog`), two LTE 700 MHz
+downlink blocks (15 kHz subcarriers, 4.7 us CP), the n41 carrier (30 kHz subcarriers, 5 ms TDD period, `/NR_30kHz`),
+the receiver's 1.001 MHz spur comb and 900 MHz ISM devices, Bluetooth BR/EDR and LE and a Zigbee packet at 2.4 GHz,
+and a Wi-Fi 5 GHz channel (312.5 kHz subcarriers, 0.8 us CP, SIFS, 102.4 ms beacons).*
+
+Results (2026-11-10, `notes/lut_experiment_results.md`): measurement unit test 17 / 17 emissions at 20-30 dB, 15 / 17 at
+12 dB; synthetic end-to-end 166 / 189 captures with the exact label, 0 wrong, 168 of 169 correct labels with verified
+evidence; real captures (59 sweep looks + 9 stress captures, 2496 tracks) 602 labels against v1's 515, 489 of them
+with a verified physical-layer field, 0 inconsistent with the capture span.
+
+What the SDW adds over v1, by discriminating power: OFDM numerology (Wi-Fi 312.5 kHz / HE 78.125 kHz vs LTE 15 kHz
+vs NR 30 kHz vs ATSC 3.0 844 Hz), symbol or chip rates (ATSC 10.762 Msym/s, DECT 1.152, BLE / BT 1, Zigbee 2 Mchip/s,
+UAT 1.0417, P25 / DMR 4800, pagers 1600 / 1200), timing structure (BT 625 us slots, DECT 10 ms frames, LTE 1 ms
+subframes and 2.5 / 5 ms TDD patterns, Wi-Fi SIFS + ACK, BLE T_IFS, Zigbee turnaround, DME 12 us pairs, ADS-B
+0.5 us pulses on a 2 MHz grid, Wi-Fi 102.4 ms beacons, AIS 26.67 ms slots), chirp slopes (LoRa BW² / 2^SF), the
+19 kHz stereo pilot and HD sidebands of FM, VOR / ILS tones, modulation class and deviation. A real emission
+in the wrong band stays `signal`; a real emission in the right band with a contradicting descriptor (an OFDM
+carrier where the library expects GFSK) is pushed below the threshold.

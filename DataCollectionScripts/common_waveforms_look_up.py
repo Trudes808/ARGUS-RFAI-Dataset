@@ -757,10 +757,11 @@ def regions_from_preprocessed(root: Path, cols_override: int | None) -> dict[str
         except json.JSONDecodeError:
             pass
     out: dict[str, dict] = {}
-    for cap_dir in sorted(p for p in root.iterdir() if p.is_dir() and (p / "snippets").is_dir()):
+    # one folder per capture, directly under root or (preprocess_dataset.py --recursive) mirrored deeper
+    cap_dirs = sorted({p.parent for p in root.rglob("*.source.sigmf-meta") if (p.parent / "snippets").is_dir()})
+    for cap_dir in cap_dirs:
         src = sorted(cap_dir.glob("*.source.sigmf-meta"))
         if not src:
-            print(f"   skip {cap_dir.name}: no *.source.sigmf-meta", file=sys.stderr)
             continue
         smeta = json.loads(src[0].read_text())
         rate = float(smeta["global"]["core:sample_rate"])

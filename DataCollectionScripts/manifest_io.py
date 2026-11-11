@@ -182,3 +182,110 @@ def achievable_rates(radio: str, lo: float = 5.0e6, hi: float | None = None) -> 
 def hz_tag(hz: float) -> str:
     """98e6 -> '98M', 24.576e6 -> '24p576M' (same convention as the N320 stress captures)."""
     return f"{hz / 1e6:g}".replace(".", "p") + "M"
+
+
+# --------------------------------------------------------------------------------------------- LUT library
+DEFAULT_LIBRARY = Path(__file__).resolve().parent / "lut_library_usa.yaml"
+LIBRARY_ONLY_KEYS = ("new", "descriptor", "variants", "synth", "source", "requires_descriptors")
+DESCRIPTOR_WEIGHTS = {"symbol_rate": 3.0, "ofdm": 3.0, "chirp": 3.0, "pri": 2.0, "period": 2.0, "gap": 2.0, "pulse": 2.0,
+                      "pulse_pair": 3.0, "modulation": 2.0, "deviation": 1.0, "fm_tones": 3.0, "am_tones": 2.0,
+                      "carrier_line": 1.0, "hop": 2.0, "hd_sidebands": 3.0, "duty": 1.0, "burst": 1.5}
+
+
+def _deep_merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def load_library(manifest_path: str | Path | None = None, library_path: str | Path | None = None) -> dict:
+    """Manifest + descriptor layer -> one library. Library entries with an existing id add `descriptor`,
+    `variants`, `synth`, `source` (and may override manifest fields); `new: true` entries are appended whole."""
+    import yaml
+    lib_path = Path(library_path) if library_path else DEFAULT_LIBRARY
+    with open(lib_path) as f:
+        lib = _coerce(yaml.safe_load(f))
+    mpath = Path(manifest_path) if manifest_path else lib_path.parent / lib.get("extends", "common_ota_waveforms_manifest_usa.yaml")
+    m = load_manifest(mpath)
+    by_id = {e["id"]: e for e in m["entries"]}
+    n_ext = n_new = 0
+    for le in lib.get("entries", []):
+        if le.get("new"):
+            if le["id"] in by_id:
+                raise ValueError(f"{lib_path}: entry {le['id']} is marked new but exists in the manifest")
+            e = dict(le)
+            for k in REQUIRED_ENTRY_KEYS:
+                if k not in e:
+                    raise ValueError(f"{lib_path}: new entry {e['id']} lacks '{k}'")
+            e.setdefault("sweep", {"default": False})
+            e.setdefault("requires", [])
+            e.setdefault("band_exclusive", False)
+            e.setdefault("iq_signature", "any")
+            if "bandwidth_hz" in e:
+                e["bandwidth_hz"].setdefault("nominal", 0.5 * (e["bandwidth_hz"]["min"] + e["bandwidth_hz"]["max"]))
+            m["entries"].append(e)
+            by_id[e["id"]] = e
+            n_new += 1
+        else:
+            if le["id"] not in by_id:
+                raise ValueError(f"{lib_path}: entry {le['id']} is not in the manifest (add new: true to define it here)")
+            e = by_id[le["id"]]
+            for k, v in le.items():
+                if k == "id":
+                    continue
+                if k in ("descriptor",) and isinstance(e.get(k), dict):
+                    e[k] = _deep_merge(e[k], v)
+                else:
+                    e[k] = v
+            n_ext += 1
+    for e in m["entries"]:
+        e.setdefault("descriptor", {})
+        e.setdefault("variants", [])
+        e.setdefault("source", "")
+        # a descriptor-level burst range defaults to the manifest burst_s
+        d = e["descriptor"]
+        if "burst_s" in e and e.get("temporal") in ("bursty", "tdd") and "burst_s" not in d.get("timing", {}):
+            d.setdefault("timing", {})["burst_s"] = e["burst_s"]
+        if e.get("requires_descriptors") is None:
+            e["requires_descriptors"] = 0 if e.get("band_exclusive") else 1
+    m["_library_path"] = str(lib_path.resolve())
+    m["_library_counts"] = {"extended": n_ext, "new": n_new}
+    m["name"] = lib.get("name", m.get("name"))
+    return m
+
+
+def descriptor_fields(e: dict) -> list[str]:
+    """Which descriptor tests an entry (or variant descriptor) defines."""
+    d = e.get("descriptor", {}) if "descriptor" in e else e
+    out = []
+    if d.get("modulation"):
+        out.append("modulation")
+    if d.get("symbol_rate_hz"):
+        out.append("symbol_rate")
+    if d.get("ofdm", {}).get("scs_hz"):
+        out.append("ofdm")
+    if d.get("chirp"):
+        out.append("chirp")
+    if d.get("deviation_hz"):
+        out.append("deviation")
+    t = d.get("timing", {})
+    for k, name in (("pulse_s", "pulse"), ("burst_s", "burst"), ("pri_s", "pri"), ("gap_s", "gap"), ("period_s", "period"),
+                    ("pulse_pair_s", "pulse_pair"), ("duty", "duty")):
+        if t.get(k):
+            out.append(name)
+    s = d.get("spectral", {})
+    if s.get("fm_tones_hz"):
+        out.append("fm_tones")
+    if s.get("am_tones_hz"):
+        out.append("am_tones")
+    if s.get("hd_sidebands"):
+        out.append("hd_sidebands")
+    if "carrier_line" in s:
+        out.append("carrier_line")
+    if d.get("hop"):
+        out.append("hop")
+    return out

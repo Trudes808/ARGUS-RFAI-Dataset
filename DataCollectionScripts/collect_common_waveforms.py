@@ -229,8 +229,16 @@ def iq_stats(path: Path, max_samps: int = 4_000_000) -> dict:
     iq = raw[0::2].astype(np.float32) + 1j * raw[1::2].astype(np.float32)
     peak = float(np.max(np.abs(raw))) / 32767.0
     rms = float(np.sqrt(np.mean(np.abs(iq) ** 2))) / 32767.0
+    # spectral span (max - median of an averaged 4096-bin PSD): a flat spectrum means nothing is being received
+    span = 0.0
+    nfft = 4096
+    n = (len(iq) // nfft) * nfft
+    if n >= 4 * nfft:
+        P = np.mean(np.abs(np.fft.fft(iq[:n].reshape(-1, nfft), axis=1)) ** 2, axis=0)
+        Pdb = 10 * np.log10(P + 1e-12)
+        span = float(Pdb.max() - np.median(Pdb))
     return {"peak_fs": round(peak, 4), "rms_dbfs": round(20 * np.log10(max(rms, 1e-9)), 1),
-            "clipped_frac": float(np.mean(np.abs(raw) >= 32700))}
+            "clipped_frac": float(np.mean(np.abs(raw) >= 32700)), "psd_span_db": round(span, 1)}
 
 
 class Radio:
@@ -420,6 +428,7 @@ def print_plan(looks: list[Look], radio_key: str):
 # --------------------------------------------------------------------------------------------- main
 def parse_args(argv=None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--library", default=None, help="descriptor library (lut_library_usa.yaml): plan from the merged library, which adds the entries defined only there")
     ap.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     ap.add_argument("--out", default=None, help="output root (one folder per capture)")
     sel = ap.add_argument_group("what to capture")
@@ -457,7 +466,7 @@ def parse_args(argv=None) -> argparse.Namespace:
 
 def main(argv=None) -> int:
     a = parse_args(argv)
-    m = mio.load_manifest(a.manifest)
+    m = mio.load_library(a.manifest, a.library) if a.library else mio.load_manifest(a.manifest)
     if a.freqs and not a.entries and not a.tier and not a.all:
         looks = plan_from_freqs(m, a)
     else:
@@ -503,7 +512,9 @@ def main(argv=None) -> int:
                 gain, probe = probe_gain(radio, lk, gain, stage, a)
                 if probe.get("history"):
                     h = probe["history"][-1]
-                    say(f"    probe: gain {gain:g} dB -> peak {h['peak_fs']:.3f} FS, rms {h['rms_dbfs']:.1f} dBFS")
+                    say(f"    probe: gain {gain:g} dB -> peak {h['peak_fs']:.3f} FS, rms {h['rms_dbfs']:.1f} dBFS, spectral span {h.get('psd_span_db', 0):.1f} dB")
+                    if h.get("psd_span_db", 99) < 4.0:
+                        say("    WARNING: flat spectrum: is an antenna on this port? (UHD defaults to RX2 on N3xx/X3xx; pass --ant TX/RX)")
                 if probe.get("probe_error"):
                     say(f"    !! probe failed: {probe['probe_error']}")
                     rows.append({"index": i, "entry": lk.entry_id, "tag": lk.tag, "fc_hz": lk.fc_hz, "rate_hz": lk.rate_hz, "status": "probe_failed"})

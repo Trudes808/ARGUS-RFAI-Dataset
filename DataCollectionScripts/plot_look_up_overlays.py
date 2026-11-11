@@ -367,6 +367,12 @@ def main(argv=None) -> int:
 
     manifest = mio.load_manifest(a.manifest)
     caps = collect_inputs(a.inputs, a.masks, a.cols)
+    # the same capture may appear in several inputs (a re-run of the detector): keep the one with the most regions
+    best = {}
+    for stem, cap in caps:
+        if stem not in best or len(cap["regions"]) > len(best[stem]["regions"]):
+            best[stem] = cap
+    caps = [(stem, cap) for stem, cap in caps if best[stem] is cap]
     if a.select:                      # keep only matching captures, in the order of the patterns
         pats = [re.compile(s) for s in a.select]
         ranked = [(next((i for i, p in enumerate(pats) if p.search(s)), None), s, c) for s, c in caps]
