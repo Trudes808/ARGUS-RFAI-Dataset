@@ -78,8 +78,10 @@ def fm_mod(audio: np.ndarray, fs: float, dev_hz: float) -> np.ndarray:
 
 
 def fm_stereo(fs: float, dur: float, audio_bw_hz: float = 15e3, pilot: bool = True, rds: bool = True, hd: bool = False,
-              dev_hz: float = 75e3, rng=None) -> np.ndarray:
-    """FM broadcast: L+R, 19 kHz pilot, 38 kHz DSB-SC L-R, 57 kHz RDS BPSK 1187.5 bps; optional NRSC-5 sidebands."""
+              dev_hz: float = 75e3, rng=None, rds_bits: np.ndarray | None = None) -> np.ndarray:
+    """FM broadcast: L+R, 19 kHz pilot, 38 kHz DSB-SC L-R, 57 kHz RDS BPSK 1187.5 bps; optional NRSC-5 sidebands.
+    rds_bits: a real RDS group stream (decode_waveforms.rds_groups) coded per the standard (differential + biphase);
+    without it the subcarrier carries random NRZ bits (shape only)."""
     rng = rng or RNG
     n = int(dur * fs)
     t = np.arange(n) / fs
@@ -89,7 +91,11 @@ def fm_stereo(fs: float, dur: float, audio_bw_hz: float = 15e3, pilot: bool = Tr
     if pilot:
         mpx += 0.09 * np.sin(2 * np.pi * 19e3 * t)
         mpx += 0.45 * lmr * np.sin(2 * np.pi * 38e3 * t)
-    if rds:
+    if rds and rds_bits is not None:
+        import decode_waveforms as dw
+        bb = dw.rds_baseband(fs, dur, rds_bits, int(rng.integers(0, len(rds_bits))))[:n]
+        mpx += 0.05 * bb * np.sin(2 * np.pi * 57e3 * t[: len(bb)])
+    elif rds:
         bits = rng.integers(0, 2, int(dur * 1187.5) + 2) * 2 - 1
         bb = np.repeat(bits, int(round(fs / 1187.5)))[:n]
         bb = sps.lfilter(np.ones(int(fs / 2375)) / int(fs / 2375), 1, bb) if fs > 10e3 else bb
@@ -248,31 +254,44 @@ def vsb8(fs: float, dur: float, rs: float = 10.762238e6, pilot: float = 1.25, rn
 
 
 # ------------------------------------------------------------------------------------------- OFDM
+def ofdm_fft_size(n_used: int) -> int:
+    return 1 << int(math.ceil(math.log2(max(n_used * 1.25, 8))))
+
+
 def ofdm(fs: float, scs_hz: float, cp_s: float, n_used: int, dur: float, qam: int = 4, rng=None, dc_null: bool = True,
-         symbol_on: np.ndarray | None = None) -> np.ndarray:
+         symbol_on: np.ndarray | None = None, sym_fn=None, cp_pattern_s: list[float] | None = None) -> np.ndarray:
     """CP-OFDM at the sample rate fs: FFT size = next power of two >= n_used * 1.25 at fs_ofdm = N * scs, then
-    resampled to fs. symbol_on (bool per OFDM symbol) blanks symbols (TDD patterns, LBT bursts)."""
+    resampled to fs. symbol_on (bool per OFDM symbol) blanks symbols (TDD patterns, LBT bursts). sym_fn(s) may
+    return {bin: value} to overwrite subcarriers of symbol s (synchronisation signals)."""
     rng = rng or RNG
-    N = 1 << int(math.ceil(math.log2(max(n_used * 1.25, 8))))
+    N = ofdm_fft_size(n_used)
     fs_ofdm = N * scs_hz
     tu = 1.0 / scs_hz
     ncp = int(round(cp_s * fs_ofdm))
+    cps = [int(round(c * fs_ofdm)) for c in cp_pattern_s] if cp_pattern_s else None      # per-symbol CP lengths (cycled)
     n_sym = int(math.ceil(dur / (tu + cp_s))) + 1
     if qam == 4:
         pts = np.array([1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j]) / np.sqrt(2)
     else:
         p = np.array([-3, -1, 1, 3]) / np.sqrt(10)
         pts = (p[:, None] + 1j * p[None, :]).ravel()
-    out = np.zeros(n_sym * (N + ncp), dtype=np.complex64)
+    out = np.zeros(n_sym * (N + max(ncp, max(cps) if cps else 0)), dtype=np.complex64)
+    pos = 0
     k_idx = np.concatenate([np.arange(1, n_used // 2 + 1), np.arange(N - n_used // 2, N)]) if dc_null else np.arange(-(n_used // 2), n_used // 2) % N
     for s in range(n_sym):
         if symbol_on is not None and not symbol_on[s % len(symbol_on)]:
+            pos += N + (cps[s % len(cps)] if cps else ncp)
             continue
         X = np.zeros(N, dtype=np.complex64)
         X[k_idx] = pts[rng.integers(0, len(pts), len(k_idx))]
+        if sym_fn is not None:
+            for kk, v in sym_fn(s).items():
+                X[kk % N] = v
         x = np.fft.ifft(X) * np.sqrt(N)
-        out[s * (N + ncp): (s + 1) * (N + ncp)] = np.concatenate([x[-ncp:], x]) if ncp else x
-    return resample_to(out, fs_ofdm, fs)
+        c = cps[s % len(cps)] if cps else ncp
+        out[pos: pos + N + c] = np.concatenate([x[-c:], x]) if c else x
+        pos += N + c
+    return resample_to(out[:pos], fs_ofdm, fs)
 
 
 def tdd_pattern(pattern: str, slot_s: float, scs_hz: float, cp_s: float) -> np.ndarray:

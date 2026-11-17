@@ -186,7 +186,7 @@ def hz_tag(hz: float) -> str:
 
 # --------------------------------------------------------------------------------------------- LUT library
 DEFAULT_LIBRARY = Path(__file__).resolve().parent / "lut_library_usa.yaml"
-LIBRARY_ONLY_KEYS = ("new", "descriptor", "variants", "synth", "source", "requires_descriptors")
+LIBRARY_ONLY_KEYS = ("new", "descriptor", "variants", "synth", "source", "requires_descriptors", "decode")
 DESCRIPTOR_WEIGHTS = {"symbol_rate": 3.0, "ofdm": 3.0, "chirp": 3.0, "pri": 2.0, "period": 2.0, "gap": 2.0, "pulse": 2.0,
                       "pulse_pair": 3.0, "modulation": 2.0, "deviation": 1.0, "fm_tones": 3.0, "am_tones": 2.0,
                       "carrier_line": 1.0, "hop": 2.0, "hd_sidebands": 3.0, "duty": 1.0, "burst": 1.5}

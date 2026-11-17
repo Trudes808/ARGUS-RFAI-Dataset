@@ -80,7 +80,7 @@ def main() -> int:
     for r in rows:
         by_cap[r["capture"]].append(r)
     L = [f"# {a.title}", "", f"Reports: {', '.join(f'`{r}`' for r in a.report)} ({len(rows)} tracks in {len(by_cap)} captures).", "",
-         "| capture | tracks | measured | labelled | with verified SDW | inconsistent | labels |", "|---|---|---|---|---|---|---|"]
+         "| capture | tracks | measured | labelled | with verified SDW | decoded | inconsistent | labels |", "|---|---|---|---|---|---|---|---|"]
     tot = Counter()
     bad = []
     label_rows = defaultdict(list)
@@ -96,13 +96,28 @@ def main() -> int:
                 inc.append(r)
         c = Counter(r["estimate"] for r in lab)
         meas = sum(1 for r in rs if r.get("sdw_measured") == "True")
-        L.append(f"| `{cap[:60]}` | {len(rs)} | {meas} | {len(lab)} | {len(ver)} | {len(inc)} | {', '.join(f'{k} {v}' for k, v in c.most_common(6))} |")
-        tot.update({"tracks": len(rs), "measured": meas, "labelled": len(lab), "verified": len(ver), "inconsistent": len(inc)})
+        dec = [r for r in rs if r.get("decoded")]
+        L.append(f"| `{cap[:60]}` | {len(rs)} | {meas} | {len(lab)} | {len(ver)} | {len(dec)} | {len(inc)} | {', '.join(f'{k} {v}' for k, v in c.most_common(6))} |")
+        tot.update({"tracks": len(rs), "measured": meas, "labelled": len(lab), "verified": len(ver), "decoded": len(dec), "inconsistent": len(inc)})
         bad += [(cap, r) for r in inc]
         for r in lab:
             label_rows[r["estimate"].split("/")[0]].append(r)
     L += ["", f"Totals: {tot['tracks']} tracks, {tot['measured']} measured, {tot['labelled']} labelled, {tot['verified']} with at least one verified descriptor field, "
-          f"{tot['inconsistent']} inconsistent with the capture span (precision by plausibility {1 - tot['inconsistent'] / max(tot['labelled'], 1):.3f})."]
+          f"{tot['decoded']} with a passing protocol decode, {tot['inconsistent']} inconsistent with the capture span "
+          f"(precision by plausibility {1 - tot['inconsistent'] / max(tot['labelled'], 1):.3f})."]
+    dec_rows = [r for r in rows if r.get("decoded")]
+    attempts = Counter(a.split(":")[0] for r in rows for a in (r.get("decode_attempts") or "").split(";") if a)
+    if attempts:
+        L += ["", "## Protocol decodes", "", f"Decoders attempted (tracks): {', '.join(f'{k} {v}' for k, v in attempts.most_common())}.", ""]
+    if dec_rows:
+        L += ["| capture | MHz | label | protocol | what was decoded |", "|---|---|---|---|---|"]
+        seen = set()
+        for r in dec_rows:
+            key = (r["capture"], r["decoded"], r["decode_summary"][:60])
+            if key in seen:
+                continue
+            seen.add(key)
+            L.append(f"| `{r['capture'][:45]}` | {float(r['fc_hz']) / 1e6:.3f} | {r['estimate']} | {r['decoded']} | {r['decode_summary'][:170]} |")
     if bad:
         L += ["", "Inconsistent labels:", ""]
         for cap, r in bad:

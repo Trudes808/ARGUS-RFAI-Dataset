@@ -123,26 +123,36 @@ def plan_from_manifest(m: dict, a: argparse.Namespace) -> list[Look]:
 
 
 def plan_from_freqs(m: dict, a: argparse.Namespace) -> list[Look]:
-    """--freqs given without --entries: one look per (freq, rate); label from the manifest entry that covers it."""
+    """--freqs given without --entries: one look per (freq, rate); label from the manifest entry that covers the
+    centre, else (wide looks whose centre sits between services) from the service entry overlapping the look's
+    span the most. Receiver artefacts (spur comb, DC spur) cover every frequency and never name a look."""
     d = m.get("defaults", {})
     dur = a.dur if a.dur is not None else float(d.get("dur_s", 1.0))
     g0 = float(d.get("gain_start_db", 35))
     rates = _num_list(a.rates) or [25.0e6]
+    services = [e for e in m["entries"] if not e.get("relative_to_capture_center") and e.get("service") != "receiver_artifact"]
     looks = []
     for fc in _num_list(a.freqs):
-        cov = mio.entries_covering(m, fc)
-        if cov:
-            e = sorted(cov, key=lambda x: (x["tier"], -x.get("band_exclusive", False)))[0]
-            eid, lab, name, tier = e["id"], e["label"], e["name"], e["tier"]
-            exp = "; ".join(x["name"] for x in cov)
-            grp = (e.get("sweep") or {}).get("antenna_group", "low" if fc < 1.5e9 else "high")
-            g = float((e.get("sweep") or {}).get("gain_start_db", g0))
-        else:
-            eid, lab, name, tier, exp, grp, g = "custom", "signal", "user-selected frequency", "-", "no manifest entry covers this frequency", ("low" if fc < 1.5e9 else "high"), g0
         for r in rates:
+            lo, hi = fc - r / 2, fc + r / 2
+            overlap = {}
+            for e in services:
+                ov = sum(max(0.0, min(hi, b) - max(lo, a_)) for a_, b in e["freq_ranges_hz"])
+                if ov > 0:
+                    overlap[e["id"]] = ov
+            cov = [e for e in services if any(a_ <= fc <= b for a_, b in e["freq_ranges_hz"])]
+            cands = cov or [e for e in services if e["id"] in overlap]
+            if cands:
+                e = sorted(cands, key=lambda x: (x["tier"], -x.get("band_exclusive", False), -overlap.get(x["id"], 0.0)))[0]
+                eid, lab, name, tier = e["id"], e["label"], e["name"], e["tier"]
+                inside = sorted((x for x in services if x["id"] in overlap), key=lambda x: -overlap[x["id"]])
+                exp = "; ".join(x["name"] for x in inside)
+                grp = (e.get("sweep") or {}).get("antenna_group", "low" if fc < 1.5e9 else "high")
+                g = float((e.get("sweep") or {}).get("gain_start_db", g0))
+            else:
+                eid, lab, name, tier, exp, grp, g = "custom", "signal", "user-selected frequency", "-", "no manifest entry covers this look", ("low" if fc < 1.5e9 else "high"), g0
             looks.append(Look(eid, lab, name, fc, r, "", dur, g, grp, exp, tier))
     return looks
-
 
 def _split(s: str) -> list[str]:
     return [x for x in re.split(r"[,\s]+", s.strip()) if x]
@@ -346,12 +356,13 @@ class Radio:
 
 
 # --------------------------------------------------------------------------------------------- gain probe
-def probe_gain(radio: Radio, lk: Look, gain: float, stage: Path, a: argparse.Namespace) -> tuple[float, dict]:
-    """0.2 s probes: lower the gain when peak > 0.5 FS, raise it when rms < -40 dBFS (max 3 steps)."""
+def probe_gain(radio: Radio, lk: Look, gain: float, stage: Path, a: argparse.Namespace, adjust: bool = True) -> tuple[float, dict]:
+    """0.2 s probes: lower the gain when peak > 0.5 FS, raise it when rms < -40 dBFS (max 3 steps).
+    adjust=False measures once at the given gain and leaves it alone (fixed-gain --survey)."""
     spec = mio.RADIOS.get(radio.key, mio.RADIOS["generic"])
     gmax = a.gain_max if a.gain_max is not None else spec["max_gain"]
     hist = []
-    for _ in range(3):
+    for _ in range(3 if adjust else 1):
         f = stage / "probe.bin"
         st = radio.capture(lk, gain, 0.2, f, quiet=True)
         if not st["ok"]:
@@ -359,6 +370,8 @@ def probe_gain(radio: Radio, lk: Look, gain: float, stage: Path, a: argparse.Nam
         s = iq_stats(f)
         f.unlink(missing_ok=True)
         hist.append({"gain_db": gain, **s})
+        if not adjust:
+            break
         if s["peak_fs"] > 0.5:
             new = max(0.0, gain - 15.0)
         elif s["rms_dbfs"] < -40.0:
@@ -520,9 +533,18 @@ def main(argv=None) -> int:
                     rows.append({"index": i, "entry": lk.entry_id, "tag": lk.tag, "fc_hz": lk.fc_hz, "rate_hz": lk.rate_hz, "status": "probe_failed"})
                     continue
             if a.survey:
+                if not probe.get("history"):   # fixed gain: the gain probe did not run, so measure once at that gain
+                    _, probe = probe_gain(radio, lk, gain, stage, a, adjust=False)
+                    if probe.get("probe_error"):
+                        say(f"    !! probe failed: {probe['probe_error']}")
+                        rows.append({"index": i, "entry": lk.entry_id, "tag": lk.tag, "fc_hz": lk.fc_hz, "rate_hz": lk.rate_hz, "status": "probe_failed"})
+                        continue
                 h = (probe.get("history") or [{}])[-1]
+                say(f"    survey: gain {gain:g} dB -> peak {h.get('peak_fs', 0):.3f} FS, rms {h.get('rms_dbfs', -200):.1f} dBFS, spectral span {h.get('psd_span_db', 0):.1f} dB"
+                    + ("   (flat spectrum: antenna?)" if h.get("psd_span_db", 99) < 4.0 else ""))
                 rows.append({"index": i, "entry": lk.entry_id, "tag": lk.tag, "fc_hz": lk.fc_hz, "rate_hz": lk.rate_hz, "channel": lk.channel,
-                             "gain_db": gain, "peak_fs": h.get("peak_fs"), "rms_dbfs": h.get("rms_dbfs"), "status": "surveyed"})
+                             "gain_db": gain, "peak_fs": h.get("peak_fs"), "rms_dbfs": h.get("rms_dbfs"), "psd_span_db": h.get("psd_span_db"),
+                             "status": "surveyed"})
                 continue
             stem = stem_for(lk, radio, gain)
             dest_dir = out / stem

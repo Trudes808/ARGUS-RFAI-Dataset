@@ -81,15 +81,20 @@ entries:
     tier: A
     kind: cross_track                     # evaluated over all tracks of a capture, not per track
     freq_ranges_hz: [[0.0, 1.0e12]]
-    comb: {min_lines: 6, max_width_bins: 6, spacings_hz: [0.5e6, 1.0e6, 2.0e6, 2.5e6, 5.0e6, 10.0e6], tolerance_bins: 1.5, min_fill: 0.5}
+    comb: {min_lines: 5, max_width_bins: 6, max_width_hz: 300.0e3, min_persistence: 0.5, second_best_factor: 3.0, background_persistence_ratio: 0.8,
+           spacings_hz: [0.5e6, 1.0e6, 2.0e6, 2.5e6, 5.0e6, 10.0e6], tolerance_bins: 2.5, min_fill: 0.5, min_fill_small: 0.8}
     bandwidth_bins: {min: 1, max: 6}
     temporal: continuous
     iq_signature: peaked
     band_exclusive: false
     requires: []
-    notes: Four or more continuous lines <= 6 bins wide on one exact spacing are labelled
-      "~spur_comb_<spacing>MHz". Seen on the N320 bench at 1.000 MHz spacing (external reference harmonics);
-      absent from terminated-input recordings of the same receiver without the reference.
+    notes: Five or more narrow lines (<= 6 bins or 300 kHz in the mask, present in at least half the frames) on
+      one exact spacing, nearly gap-free when short, at least three times as many as the densest off-grid residue of that spacing holds (a dense
+      uplink band or an FM band on its 200 kHz raster fails this), are labelled "~spur_comb_<spacing>MHz" with the
+      nominal spacing; tracks a band catch-all labels are still candidates, only tracks with
+      physical-layer evidence (pilot, rate, decode) are exempt. Seen on the N320 bench at 1.000 MHz spacing with
+      teeth at x.27 MHz from 839 to 932 MHz (850 uplink, LMR 800, ISM 900, paging 929); absent from
+      terminated-input recordings of the same receiver without the reference.
     sweep: {default: false}
 
   # ------------------------------------------------------------------ broadcast -----------------------

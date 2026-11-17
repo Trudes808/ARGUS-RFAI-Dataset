@@ -37,9 +37,12 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import common_waveforms_look_up as lk  # noqa: E402
 import manifest_io as mio  # noqa: E402
+import decode_waveforms as dw  # noqa: E402
 import measure_descriptors as md  # noqa: E402
 
-VERSION = "lut_classify.py 0.1 (lut_classification_experiment)"
+VERSION = "lut_classify.py 0.2 (lut_classification_experiment)"
+LOW_SNR_DB = 6.0        # below this a label needs verified descriptor evidence (or a decode): no band-only guesses on weak signals
+DECODE_CONF, DECODE_WEAK_CONF = 0.97, 0.86
 THRESH = lk.THRESH
 PREFIX = lk.ESTIMATE_PREFIX
 
@@ -552,6 +555,7 @@ class Match2:
     contradictions: list
     variant: str = ""
     variant_evidence: str = ""
+    decode: object = None
 
     @property
     def label(self) -> str:
@@ -596,22 +600,38 @@ def decide_v2(t: lk.Track, s: dict, band: dict, library: dict, margin: float) ->
         # physical-layer evidence that can stand in for an unresolvable channel raster: rates, numerology, timing, tones
         return sum(r.weight for r in m.verified if r.name not in WEAK_FIELDS)
 
+    mm = s.get("mod", {}) if s.get("measured") else {}
+    snr = max(mm.get("snr_db", 0.0) or 0.0, mm.get("snr_tight_db", 0.0) or 0.0) if mm else None
+    def _weak_unverified(m):
+        # a weak emission with nothing but band / width evidence is left as "signal": false labels cost more than misses
+        return snr is not None and snr < LOW_SNR_DB and not m.verified and not m.entry.get("catch_all") and m.entry.get("kind") != "cross_track"
+
+    def _n_strong(m):
+        # the verified descriptor fields an entry in a shared band must show: rates, numerology, timing, tones, chirp,
+        # hop or a decode. Modulation class, deviation, duty, burst length and a carrier line are too easy to share
+        # (an OOK remote looks like narrow FM with a small deviation to the class test)
+        return sum(1 for r in m.verified if r.name not in WEAK_FIELDS)
+
     def _eligible(m):
-        if m.entry["tier"] not in THRESH:
+        if m.entry["tier"] not in THRESH or _weak_unverified(m):
             return False
+        if _n_strong(m) == 0 and m.v1.conf < 0.5:
+            return False                    # weak fields may confirm a plausible band score, never rescue a poor one
         thr = THRESH[m.entry["tier"]] - (0.05 if m.verified else 0.0)
         return (m.v1.requires_ok or (_strong(m) >= 3.0 and not any(r.membership < 0.6 for r in m.contradictions))) \
-            and m.conf >= thr and len(m.verified) >= int(m.entry.get("requires_descriptors", 0)) and _fields_ok(m)
+            and m.conf >= thr and _n_strong(m) >= int(m.entry.get("requires_descriptors", 0)) and _fields_ok(m)
     eligible = [m for m in matches if _eligible(m)]
     if not eligible:
         if not matches:
             return None, matches, "no entry passes"
         b = matches[0]
         why = f"best {b.entry['label']} {b.conf:.2f}"
-        if not b.v1.requires_ok:
+        if _weak_unverified(b):
+            why += f" (weak signal {snr:.0f} dB, no verified descriptor)"
+        elif not b.v1.requires_ok:
             why += " (required features unverified)"
-        elif len(b.verified) < int(b.entry.get("requires_descriptors", 0)):
-            why += " (no verified descriptor)"
+        elif _n_strong(b) < int(b.entry.get("requires_descriptors", 0)):
+            why += " (no strong verified descriptor)"
         elif not _fields_ok(b):
             why += f" (needs {', '.join(b.entry.get('requires_fields', []))})"
         return None, matches, why
@@ -631,6 +651,56 @@ def decide_v2(t: lk.Track, s: dict, band: dict, library: dict, margin: float) ->
                 return None, matches, f"ambiguous: {best.entry['label']} {best.conf:.2f} vs {m.entry['label']} {m.conf:.2f}"
     best.variant, best.variant_evidence = pick_variant(best.entry, s, band)
     return best, matches, "ok"
+
+
+# =========================================================================================== decode
+def apply_decode(t: lk.Track, s: dict, best, matches: list, capiq, max_protocols: int = 4, cache: dict | None = None) -> tuple:
+    """Try the protocol decoders of the plausible entries: the chosen one first, then the runners-up, then any
+    entry whose decodable channel the track sits on (a BLE advertising channel, 1090 MHz, a DECT carrier) whatever
+    its band score. A passing decode settles the label (confidence 0.97; 0.86 for a sync-only result) and names the
+    variant. Results are cached per (protocol, channel) within a capture: neighbouring tracks of one emitter share them."""
+    if t.forced_label or capiq is None or not s.get("measured"):
+        return best, []
+    mm = s.get("mod", {})
+    snr = max(mm.get("snr_db", 0.0) or 0.0, mm.get("snr_tight_db", 0.0) or 0.0)
+    order = ([best.entry] if best else []) + [m.entry for m in matches if m.conf >= 0.2 and (not best or m.entry["id"] != best.entry["id"])]
+    for m in matches:
+        if m.entry not in order and m.entry.get("decode") and any(
+                dw.REGISTRY[pr]["centre"].split(":")[0] in ("fixed", "set", "raster") and dw.centre_for(pr, t.fc, t.bw, capiq.rate) for pr in dw.protocols_for_entry(m.entry["id"], m.entry)):
+            order.append(m.entry)
+    protos = []
+    for e in order:
+        for pr in dw.protocols_for_entry(e["id"], e):
+            if all(pr != q for q, _ in protos):
+                protos.append((pr, e))
+    decodes = []
+    for pr, e in protos[:max_protocols]:
+        key = None
+        if cache is not None and dw.REGISTRY[pr]["centre"].split(":")[0] in ("fixed", "set", "raster"):
+            cands = dw.centre_for(pr, t.fc, t.bw, capiq.rate)
+            key = (pr, cands[0]) if cands else None
+        if key is not None and key in cache:
+            d = cache[key]
+        else:
+            d = dw.attempt(pr, capiq, t.fc, t.bw, snr)
+            if key is not None and (d.ok or "skipped" not in d.evidence):
+                cache[key] = d
+        decodes.append(d)
+        if not d.ok:
+            continue
+        m = next((x for x in matches if x.entry["id"] == e["id"]), None)
+        if m is None:
+            m = Match2(e, lk.Match(e, 0.5, set(), [], True), 0.5, 1.0, 0.0, [], [])
+            matches.append(m)
+        m.verified.append(FieldResult("decode", 3.0, 1.0, True, "DECODED " + d.evidence))
+        m.conf = max(m.conf, DECODE_WEAK_CONF if d.weak else DECODE_CONF)
+        m.decode = d
+        if d.variant:
+            m.variant, m.variant_evidence = d.variant, d.evidence
+        best = m
+        if not d.weak:
+            break
+    return best, decodes
 
 
 # =========================================================================================== per capture
@@ -655,7 +725,8 @@ def sdw_summary(s: dict) -> dict:
             "sdw_hd_db": s.get("hd", {}).get("sideband_db", ""), "sdw_seconds": s.get("seconds")}
 
 
-def run_capture(stem: str, cap: dict, library: dict, margin: float, measure: bool = True, max_tracks: int = 600, quiet: bool = False):
+def run_capture(stem: str, cap: dict, library: dict, margin: float, measure: bool = True, max_tracks: int = 600, quiet: bool = False,
+                attempt_decode: bool = False, max_decode_tracks: int = 400):
     t0 = time.time()
     tracks = lk.build_tracks(cap["regions"], cap["n_frames"])
     capiq = None
@@ -678,17 +749,31 @@ def run_capture(stem: str, cap: dict, library: dict, margin: float, measure: boo
                 print(f"   {stem}: measured {i + 1}/{min(len(tracks), max_tracks)} tracks ({time.time() - t0:.0f} s)", flush=True)
     band = md.measure_band([(t, sdws[t.tid]) for t in tracks if t.tid in sdws], capiq.n / capiq.rate if capiq else 1.0) if sdws else {}
     empty = {"measured": False}
-    # first pass: which tracks are explained with high confidence (never comb candidates)
+    # first pass: which tracks are explained on physical-layer evidence (never comb candidates). A band label alone
+    # does not protect a track: the bench comb runs through the 850 MHz uplink and paging bands, whose catch-all
+    # entries label every narrow persistent tooth at 1.0, as much as through ISM 900
     explained = set()
     for t in tracks:
         best, _, _ = decide_v2(t, sdws.get(t.tid, empty), band, library, margin)
-        if best and best.conf >= 0.9:
+        if best and best.conf >= 0.9 and any(r.name not in WEAK_FIELDS for r in best.verified):
             explained.add(t.tid)
     lk.comb_pass(tracks, library, explained)
     rows = []
+    n_dec = 0
+    t_dec = 0.0
+    dec_cache: dict = {}
     for t in tracks:
         s = sdws.get(t.tid, empty)
         best, matches, why = decide_v2(t, s, band, library, margin)
+        decodes = []
+        if attempt_decode and n_dec < max_decode_tracks:
+            t1 = time.time()
+            best, decodes = apply_decode(t, s, best, matches, capiq, cache=dec_cache)
+            t_dec += time.time() - t1
+            n_dec += 1 if decodes else 0
+            if best is not None and best.decode is not None:
+                why = "ok"
+                matches.sort(key=lambda m: -m.conf)
         top = matches[0] if matches else None
         row = {"capture": stem, "track": t.tid, "n_regions": len(t.regions), "frames_present": len({r.frame for r in t.regions}), "frames_total": t.n_frames_total,
                "fc_hz": round(t.fc, 1), "bw_hz": round(t.bw, 1), "f_lo_hz": round(t.f_lo, 1), "f_hi_hz": round(t.f_hi, 1), "duty_mask": round(t.duty, 3),
@@ -700,10 +785,16 @@ def run_capture(stem: str, cap: dict, library: dict, margin: float, measure: boo
                "contradictions": ";".join(f"{r.name}({r.membership:.2f})" for r in best.contradictions) if best else "",
                "evidence": ("; ".join(best.v1.evidence) + " | SDW: " + "; ".join(r.evidence for r in best.verified + best.contradictions if r.evidence)
                             + (f" | variant: {best.variant_evidence}" if best.variant else "")) if best else why,
+               "decoded": (best.decode.protocol if (best and best.decode is not None) else ""),
+               "decode_summary": (best.decode.evidence if (best and best.decode is not None) else ""),
+               "decode_fields": (json.dumps(best.decode.fields, default=_json_default)[:600] if (best and best.decode is not None) else ""),
+               "decode_attempts": ";".join(f"{d.protocol}:{'ok' if d.ok else 'no'}" for d in decodes),
                "runner_up": (f"{top.label} {top.conf:.2f}" if (top and (not best or top.entry['id'] != best.entry['id'])) else
                              (f"{matches[1].label} {matches[1].conf:.2f}" if best and len(matches) > 1 else "")),
                "_best": best, "_track": t, "_sdw": s}
         rows.append(row)
+    if attempt_decode and not quiet and n_dec:
+        print(f"   {stem}: decode attempted on {n_dec} tracks ({t_dec:.0f} s), {sum(1 for r in rows if r['decoded'])} decoded", flush=True)
     return tracks, rows, sdws, band
 
 
@@ -727,7 +818,7 @@ def write_labels(rows: list[dict], root_for_manifest: Path | None) -> int:
             orig = a.get("argus:detector_label", a.get("core:label", ""))
             a["argus:detector_label"] = orig
             for k in list(a.keys()):
-                if k.startswith("argus:estimate_") or k == "argus:sdw":
+                if k.startswith("argus:estimate_") or k in ("argus:sdw", "argus:decode"):
                     del a[k]
             if best:
                 a["core:label"] = PREFIX + best.label
@@ -737,6 +828,9 @@ def write_labels(rows: list[dict], root_for_manifest: Path | None) -> int:
                 a["argus:estimate_confidence"] = round(best.conf, 3)
                 a["argus:estimate_verified"] = [r.name for r in best.verified]
                 a["argus:estimate_evidence"] = row["evidence"][:600]
+                if best.decode is not None:
+                    a["argus:decode"] = {"protocol": best.decode.protocol, "evidence": best.decode.evidence[:400],
+                                         "fields": json.loads(json.dumps(best.decode.fields, default=_json_default))}
             else:
                 a["core:label"] = "signal"
             s = row["_sdw"]
@@ -820,6 +914,8 @@ def main(argv=None) -> int:
     ap.add_argument("--margin", type=float, default=0.10)
     ap.add_argument("--max-tracks", type=int, default=600, help="measure at most this many tracks per capture")
     ap.add_argument("--report-dir", default=None)
+    ap.add_argument("--attempt-decode", action="store_true", help="run the protocol decoders (decode_waveforms.py) on plausible tracks; a pass settles the label")
+    ap.add_argument("--max-decode-tracks", type=int, default=400, help="decode at most this many tracks per capture")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
     library = mio.load_library(a.manifest, a.library)
@@ -833,7 +929,7 @@ def main(argv=None) -> int:
         if a.select and not any(s in stem for s in a.select):
             continue
         t0 = time.time()
-        tracks, rows, sdws, band = run_capture(stem, cap, library, a.margin, not a.no_measure, a.max_tracks, a.quiet)
+        tracks, rows, sdws, band = run_capture(stem, cap, library, a.margin, not a.no_measure, a.max_tracks, a.quiet, a.attempt_decode, a.max_decode_tracks)
         all_rows.extend(rows)
         (report_dir / f"sdw_{stem}.json").write_text(json.dumps({"tracks": sdws, "band": band}, default=_json_default))
         if not a.quiet:
@@ -846,7 +942,8 @@ def main(argv=None) -> int:
         w.writeheader()
         w.writerows(all_rows)
     labels = Counter(r["estimate"] for r in all_rows)
-    summ = {"tool": VERSION, "library": library.get("_library_path"), "input": str(inp), "tracks": len(all_rows),
+    summ = {"tool": VERSION, "library": library.get("_library_path"), "input": str(inp), "tracks": len(all_rows), "attempt_decode": a.attempt_decode,
+            "decoded": Counter(r["decoded"] for r in all_rows if r.get("decoded")).most_common(),
             "labelled": sum(v for k, v in labels.items() if k != "signal"), "labels": dict(labels.most_common()),
             "measured": sum(1 for r in all_rows if r.get("sdw_measured")), "annotations_written": n_written, "seconds": round(time.time() - t_all, 1)}
     (report_dir / "lut_summary.json").write_text(json.dumps(summ, indent=1) + "\n")

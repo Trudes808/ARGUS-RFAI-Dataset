@@ -91,6 +91,7 @@ entries:
       - {id: analog, suffix: analog, descriptor: {spectral: {fm_tones_hz: [19.0e3]}}}
       - {id: hd_hybrid, suffix: HD, descriptor: {spectral: {hd_sidebands: {offset_hz: [129.4e3, 198.4e3], scs_hz: 363.37, cp_s: 0.15e-3}}}}
     synth: {kind: fm_stereo, audio_bw_hz: 15.0e3, pilot: true, rds: true, hd_prob: 0.4}
+    decode: [rds]
 
   - id: noaa_weather_radio
     source: "NWS NWR specification (7 channels 162.400-162.550 MHz, NBFM +-5 kHz, synthesized voice; 1050 Hz WAT tone; SAME AFSK 520.83 bps, mark 2083.3 Hz / space 1562.5 Hz, NWSI 10-1712)"
@@ -187,9 +188,9 @@ entries:
     bandwidth_hz: {min: 6.0e3, nominal: 9.0e3, max: 11.0e3}
     temporal: continuous
     iq_signature: peaked
-    band_exclusive: false
+    band_exclusive: true
     requires: [bandwidth, temporal]
-    requires_descriptors: 1
+    requires_descriptors: 0
     source: "ITU Radio Regulations Art. 5 (HF broadcasting bands); ITU-R BS.640 (AM, 5 kHz spacing)"
     descriptor:
       modulation: [am]
@@ -281,6 +282,7 @@ entries:
       - {id: mode_s, suffix: ModeS, descriptor: {timing: {burst_s: {min: 55.0e-6, max: 130.0e-6}}}}
       - {id: mode_ac, suffix: ModeAC, descriptor: {timing: {burst_s: {min: 15.0e-6, max: 25.0e-6}, pri_s: [{value: 1.45e-6, tol: 0.05}]}}}
     synth: {kind: adsb_ppm, rate_per_s: [20, 300]}
+    decode: [adsb]
 
   - id: ssr_interrogation_1030
     source: "ICAO Annex 10 Vol IV Ch 3 (interrogations at 1030 +-0.2 MHz: P1/P3 pulses 0.8 us, spacing 8 us (Mode A) / 21 us (Mode C) / 5 us (Mode S P1-P2); Mode S P6 16.25 or 30.25 us with DPSK at 4 Mbps)"
@@ -321,7 +323,8 @@ entries:
         burst_s: {min: 0.2e-3, max: 4.5e-3}
         period_s: [{value: 1.0, tol: 0.01, note: UTC second (ground uplinks)}, {value: 5.5e-3, tol: 0.02, note: ground uplink slots}]
     sweep: {default: true, antenna_group: low, centers_hz: [979.0e6], rates_hz: [10.0e6]}
-    synth: {kind: fsk_burst, symbol_rate_hz: 1.041667e6, h: 0.6, bt: null, burst_bits: [276, 420, 4416], rate_per_s: [5, 60]}
+    synth: {kind: fsk_burst, symbol_rate_hz: 1.041667e6, h: 0.6, bt: null, burst_bits: [276, 420, 4416], rate_per_s: [5, 60], codec: uat}
+    decode: [uat]
 
   - id: dme_tacan
     requires_fields: [pulse_pair]         # shares 960-1215 MHz with UAT, SSR and TACAN: the 12 / 30 us pairs must be seen
@@ -397,7 +400,7 @@ entries:
     iq_signature: any
     band_exclusive: true
     requires: [bandwidth]
-    requires_descriptors: 1
+    requires_descriptors: 0
     source: "NOAA KLM User's Guide (APT: 137.1 / 137.62 / 137.9125 MHz, FM +-17 kHz of a 2400 Hz AM subcarrier, ~34 kHz wide, during 10-15 min passes); Meteor-M LRPT (137.1 / 137.9 MHz, QPSK 72 ksym/s); Orbcomm FCC filings (137.2-137.8 MHz downlinks, SDPSK 4800 bps)"
     descriptor:
       modulation: [fm, psk]
@@ -426,7 +429,8 @@ entries:
       - {id: p25, suffix: P25, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 4800.0, tol: 0.02}], mod_index: [0.75], deviation_hz: {peak_min: 1.5e3, peak_max: 2.2e3}}}
       - {id: dmr, suffix: DMR, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 4800.0, tol: 0.02}], mod_index: [0.81], timing: {pri_s: [{value: 60.0e-3, tol: 0.03, note: 2-slot TDMA}], burst_s: {min: 25.0e-3, max: 30.0e-3}}}}
       - {id: nxdn, suffix: NXDN, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 2400.0, tol: 0.02}, {value: 4800.0, tol: 0.02}], mod_index: [0.875]}}
-    synth: {kind: lmr_mix, kinds: [nbfm_voice, c4fm, dmr_sub], channel_hz: 12.5e3}
+    synth: {kind: lmr_mix, kinds: [nbfm_voice, c4fm, dmr_sub, dmr_bs], channel_hz: 12.5e3}
+    decode: [p25, dmr]
 
   - id: murs_151
     new: true
@@ -465,7 +469,8 @@ entries:
       - {id: p25, suffix: P25, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 4800.0, tol: 0.02}], mod_index: [0.75]}}
       - {id: dmr, suffix: DMR, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 4800.0, tol: 0.02}], mod_index: [0.81], timing: {pri_s: [{value: 60.0e-3, tol: 0.03}], burst_s: {min: 25.0e-3, max: 30.0e-3}}}}
       - {id: nxdn, suffix: NXDN, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 2400.0, tol: 0.02}, {value: 4800.0, tol: 0.02}], mod_index: [0.875]}}
-    synth: {kind: lmr_mix, kinds: [nbfm_voice, c4fm, dmr_sub], channel_hz: 12.5e3}
+    synth: {kind: lmr_mix, kinds: [nbfm_voice, c4fm, dmr_sub, dmr_bs], channel_hz: 12.5e3}
+    decode: [p25, dmr]
 
   - id: frs_gmrs
     source: "47 CFR 95 Subpart B (FRS: 22 channels, 12.5 kHz, +-2.5 kHz) and Subpart E (GMRS: 25 kHz, +-5 kHz, repeater inputs 467.550-467.725 MHz); channel centres 462.5625 + 0.025 k (1-7), 467.5625 + 0.025 k (8-14), 462.5500 + 0.025 k (15-22)"
@@ -501,6 +506,7 @@ entries:
       - {id: aprs, suffix: APRS, descriptor: {modulation: [fm], spectral: {fm_tones_hz: [1200.0, 2200.0]}, symbol_rate_hz: [{value: 1200.0, tol: 0.03}], timing: {burst_s: {min: 0.2, max: 2.0}}}}
     sweep: {default: false, antenna_group: low, centers_hz: [146.0e6], rates_hz: [5.0e6]}
     synth: {kind: nbfm_voice, audio_bw_hz: 3.0e3, deviation_hz: 4.0e3, ptt: true}
+    decode: [p25, dmr]
 
   - id: amateur_70cm
     new: true
@@ -513,7 +519,7 @@ entries:
     temporal: either
     burst_s: {min: 0.2, max: 60.0}
     iq_signature: peaked
-    band_exclusive: true
+    band_exclusive: false
     requires: [bandwidth]
     source: "47 CFR 97; ARRL 70 cm band plan (repeaters 442-445 / 447-450 MHz outputs, 25 kHz; D-STAR GMSK 4800 bps; C4FM/YSF 4800 sym/s; DMR)"
     descriptor:
@@ -525,6 +531,7 @@ entries:
       - {id: digital_voice, suffix: digital_voice, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 4800.0, tol: 0.02}]}}
     sweep: {default: false, antenna_group: low, centers_hz: [445.0e6], rates_hz: [12.5e6]}
     synth: {kind: nbfm_voice, audio_bw_hz: 3.0e3, deviation_hz: 4.0e3, ptt: true}
+    decode: [p25, dmr]
 
   - id: public_safety_700
     source: "47 CFR 90 Subpart R (769-775 / 799-805 MHz narrowband, 6.25 kHz raster, 12.5 kHz channels); TIA-102.BAAA-A (P25 Phase 1 C4FM 4800 sym/s); TIA-102.BBAB (P25 Phase 2: 2-slot TDMA, 12 kbps, outbound H-DQPSK 6000 sym/s, 30 ms slots in a 360 ms superframe); band 14 (758-768 / 788-798 MHz) is FirstNet LTE and matches cell_700_*"
@@ -551,7 +558,8 @@ entries:
       - {id: edacs, suffix: EDACS, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 9600.0, tol: 0.02}]}}
       - {id: smartnet, suffix: SmartNet, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 3600.0, tol: 0.02}]}}
       - {id: nxdn, suffix: NXDN, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 2400.0, tol: 0.02}]}}
-    synth: {kind: lmr_mix, kinds: [c4fm, nbfm_voice, fsk2_control], channel_hz: 25.0e3}
+    synth: {kind: lmr_mix, kinds: [c4fm, nbfm_voice, fsk2_control, dmr_bs], channel_hz: 25.0e3}
+    decode: [p25, dmr]
 
   - id: paging_929
     source: "FLEX protocol (Motorola, 1993; ITU-R M.584-2 Annex 3): 2-FSK 1600 bps and 4-FSK 1600 / 3200 sym/s (3200 / 6400 bps), deviations +-4.8 kHz (outer) / +-1.6 kHz (inner), 25 kHz channels, frames of 1.875 s, 128 frames per 4-minute cycle; POCSAG (CCIR Radiopaging Code No. 1, ITU-R M.584): 2-FSK 512 / 1200 / 2400 bps, +-4.5 kHz, 17-codeword batches"
@@ -564,7 +572,8 @@ entries:
     variants:
       - {id: flex, suffix: FLEX, descriptor: {symbol_rate_hz: [{value: 1600.0, tol: 0.02}, {value: 3200.0, tol: 0.02}]}}
       - {id: pocsag, suffix: POCSAG, descriptor: {symbol_rate_hz: [{value: 1200.0, tol: 0.02}, {value: 2400.0, tol: 0.02}, {value: 512.0, tol: 0.02}]}}
-    synth: {kind: fsk_burst, symbol_rate_hz: 1600.0, h: 6.0, bt: null, levels: 2, burst_s: [0.3, 3.0], rate_per_s: [0.5, 2.0]}
+    synth: {kind: paging, codecs: [pocsag1200, pocsag2400, pocsag512, flex1600], burst_s: [0.4, 3.0], rate_per_s: [0.5, 2.0]}
+    decode: [pocsag, flex]
 
   - id: wmts_608
     new: true
@@ -633,7 +642,8 @@ entries:
       ofdm: {scs_hz: [15.0e3], cp_s: [4.69e-6, 5.21e-6]}
       spectral: {carrier_line: false, rolloff: steep}
       timing: {period_s: [{value: 1.0e-3, tol: 0.02, note: subframe}, {value: 10.0e-3, tol: 0.02, note: frame}], duty: {min: 0.95, max: 1.0}}
-    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6, 18.0e6], subframe: true}
+    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6, 18.0e6], subframe: true, lte_sync: true, raster_hz: 100.0e3}
+    decode: [lte]
 
   - id: cell_600_ul
     source: "3GPP TS 36.101 (band 71 UL 663-698 MHz); TS 36.211 (SC-FDMA uplink: 15 kHz, normal CP, 1 ms subframes; PUCCH 180 kHz at the carrier edges with slot hopping every 0.5 ms; PRACH 1.08 MHz, 1-3 ms); TS 38.211 (n71 UL: DFT-s-OFDM / CP-OFDM, 15 kHz slots of 1 ms)"
@@ -653,7 +663,8 @@ entries:
       ofdm: {scs_hz: [15.0e3], cp_s: [4.69e-6, 5.21e-6]}
       spectral: {carrier_line: false, rolloff: steep}
       timing: {period_s: [{value: 1.0e-3, tol: 0.02}, {value: 10.0e-3, tol: 0.02}], duty: {min: 0.95, max: 1.0}}
-    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6], subframe: true}
+    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6], subframe: true, lte_sync: true, raster_hz: 100.0e3}
+    decode: [lte]
 
   - id: cell_700_ul
     source: "3GPP TS 36.101 (bands 12 UL 699-716, 13 UL 777-787, 14 UL 788-798, 17 UL 704-716 MHz); TS 36.211 (SC-FDMA, 1 ms subframes, PUCCH edge hopping)"
@@ -672,7 +683,8 @@ entries:
       ofdm: {scs_hz: [15.0e3], cp_s: [4.69e-6, 5.21e-6]}
       spectral: {carrier_line: false, rolloff: steep}
       timing: {period_s: [{value: 1.0e-3, tol: 0.02}, {value: 10.0e-3, tol: 0.02}], duty: {min: 0.95, max: 1.0}}
-    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6, 18.0e6], subframe: true}
+    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6, 18.0e6], subframe: true, lte_sync: true, raster_hz: 100.0e3}
+    decode: [lte]
 
   - id: cell_850_ul
     source: "3GPP TS 36.101 (band 5 UL 824-849, band 26 UL 814-849 MHz); TS 36.211"
@@ -691,7 +703,8 @@ entries:
       ofdm: {scs_hz: [15.0e3], cp_s: [4.69e-6, 5.21e-6]}
       spectral: {carrier_line: false, rolloff: steep}
       timing: {period_s: [{value: 1.0e-3, tol: 0.02}, {value: 10.0e-3, tol: 0.02}], duty: {min: 0.95, max: 1.0}}
-    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6, 18.0e6], subframe: true}
+    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [4.5e6, 9.0e6, 18.0e6], subframe: true, lte_sync: true, raster_hz: 100.0e3}
+    decode: [lte]
 
   - id: cell_1900_ul
     source: "3GPP TS 36.101 (band 2 UL 1850-1910, band 25 UL 1850-1915 MHz)"
@@ -710,7 +723,8 @@ entries:
       ofdm: {scs_hz: [15.0e3], cp_s: [4.69e-6, 5.21e-6]}
       spectral: {carrier_line: false, rolloff: steep}
       timing: {period_s: [{value: 1.0e-3, tol: 0.02}, {value: 10.0e-3, tol: 0.02}], duty: {min: 0.95, max: 1.0}}
-    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [9.0e6, 18.0e6], subframe: true}
+    synth: {kind: ofdm_continuous, scs_hz: 15.0e3, cp_s: 4.69e-6, bw_hz: [9.0e6, 18.0e6], subframe: true, lte_sync: true, raster_hz: 100.0e3}
+    decode: [lte]
 
   - id: cell_aws_ul
     source: "3GPP TS 36.101 (band 4 UL 1710-1755, band 66 UL 1710-1780 MHz)"
@@ -733,6 +747,7 @@ entries:
       - {id: nr30, suffix: NR_30kHz, descriptor: {ofdm: {scs_hz: [30.0e3], cp_s: [2.34e-6, 2.86e-6]}}}
       - {id: lte15, suffix: LTE_15kHz, descriptor: {ofdm: {scs_hz: [15.0e3], cp_s: [4.69e-6]}}}
     synth: {kind: ofdm_tdd, scs_hz: 30.0e3, cp_s: 2.34e-6, bw_hz: [38.0e6, 58.0e6, 95.0e6], pattern: DDDSUUDDDD, slot_s: 0.5e-3}
+    decode: [lte]
 
   - id: cbrs_3550
     source: "47 CFR 96 (CBRS 3550-3700 MHz, 10 MHz channels, GAA/PAL); 3GPP TS 38.101-1 (n48, 30 kHz SCS) and TS 36.101 (band 48 LTE TDD, 15 kHz); deployment: TDD patterns DDDSU (2.5 ms) or DDDSUUDDDD (5 ms)"
@@ -818,7 +833,8 @@ entries:
         burst_s: {min: 0.08e-3, max: 0.8e-3}
         pri_s: [{value: 10.0e-3, tol: 0.02, note: frame}, {value: 416.7e-6, tol: 0.03, note: slot}]
         period_s: [{value: 10.0e-3, tol: 0.02, note: frame}]
-    synth: {kind: fsk_burst, symbol_rate_hz: 1.152e6, h: 0.5, bt: 0.5, burst_bits: [420], frame_s: 10.0e-3, slots_per_frame: 24, active_slots: [1, 4]}
+    synth: {kind: fsk_burst, symbol_rate_hz: 1.152e6, h: 0.5, bt: 0.5, burst_bits: [420], frame_s: 10.0e-3, slots_per_frame: 24, active_slots: [1, 4], codec: dect}
+    decode: [dect]
 
   - id: ism_900_generic
     requires_descriptors: 0            # deliberately coarse catch-all: the band + timing label stands; descriptors add the variant
@@ -830,7 +846,8 @@ entries:
       - {id: wisun_fsk, suffix: SUN-FSK, descriptor: {modulation: [fsk], symbol_rate_hz: [{value: 50.0e3, tol: 0.03}, {value: 100.0e3, tol: 0.03}, {value: 150.0e3, tol: 0.03}, {value: 200.0e3, tol: 0.03}], mod_index: [0.5, 1.0]}}
       - {id: ert_meter, suffix: ERT_meter, descriptor: {modulation: [pulse, am], symbol_rate_hz: [{value: 32.768e3, tol: 0.03, note: Manchester chips}], timing: {burst_s: {min: 2.0e-3, max: 15.0e-3}}}}
       - {id: rfid_reader, suffix: RFID_reader, descriptor: {modulation: [am], spectral: {carrier_line: true}, timing: {burst_s: {min: 5.0e-3, max: 400.0e-3}}}}
-    synth: {kind: fsk_burst, symbol_rate_hz: 50.0e3, h: 1.0, bt: 0.5, burst_bits: [400, 2000], rate_per_s: [2, 30]}
+    synth: {kind: ism900_mix, kinds: [sun_fsk, ert, ert], symbol_rate_hz: 50.0e3, h: 1.0, bt: 0.5, burst_bits: [400, 2000], rate_per_s: [2, 30]}
+    decode: [ert]
 
   - id: lora_us915
     source: "LoRa Alliance RP002-1.0.4 (US902-928: 64 uplink channels of 125 kHz at 902.3 + 0.2 k MHz, 8 uplink channels of 500 kHz at 903.0 + 1.6 k MHz, 8 downlink channels of 500 kHz at 923.3 + 0.6 k MHz; SF7-SF10 uplink, dwell time <= 400 ms); Semtech AN1200.22 (CSS: symbol = 2^SF / BW, chirp slope = BW^2 / 2^SF, preamble 8 up-chirps + 2.25 down-chirps)"
@@ -903,6 +920,7 @@ entries:
       - {id: le1m, suffix: 1M, descriptor: {symbol_rate_hz: [{value: 1.0e6, tol: 0.02}]}}
       - {id: le2m, suffix: 2M, descriptor: {symbol_rate_hz: [{value: 2.0e6, tol: 0.02}]}}
     synth: {kind: ble_adv, h: 0.5, bt: 0.5, adv_interval_s: [0.02, 0.3], pdu_bytes: [10, 47], scan_req_prob: 0.3}
+    decode: [ble_adv]
 
   - id: zigbee_802154
     source: "IEEE 802.15.4-2020 Clause 12 (O-QPSK PHY 2450 MHz: 2 Mchip/s with half-sine pulse shaping (MSK-equivalent), 62.5 ksym/s, 250 kbps; channels 11-26 at 2405 + 5 (k-11) MHz; SHR 5 bytes + PHR 1 byte, PSDU <= 127 bytes -> frames 352 us (ACK, 11 bytes) .. 4.256 ms; aTurnaroundTime 12 symbols = 192 us; backoff slot 320 us)"
@@ -915,6 +933,7 @@ entries:
         burst_s: {min: 0.3e-3, max: 4.4e-3}
         gap_s: [{value: 192.0e-6, tol: 0.15, note: turnaround before ACK}]
     synth: {kind: oqpsk_burst, chip_rate_hz: 2.0e6, frame_bytes: [11, 127], ack_prob: 0.5, rate_per_s: [2, 40]}
+    decode: [zigbee]
 
   - id: ism_2g4_proprietary_gfsk
     new: true

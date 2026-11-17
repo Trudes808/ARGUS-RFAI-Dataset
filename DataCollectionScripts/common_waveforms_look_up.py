@@ -210,11 +210,20 @@ def build_tracks(regions: list[Region], n_frames_total: int, iou_min: float = 0.
 def comb_pass(tracks: list[Track], manifest: dict, explained: set | None = None):
     """Cross-track: a regular comb of >= min_lines narrow persistent lines on one spacing -> spur_comb.
 
-    `explained` holds the ids of tracks a manifest entry already explains with high confidence (e.g. FM
-    stations, which sit on a 200 kHz raster and would otherwise be mistaken for comb teeth); they are never
-    comb candidates. A candidate line must be narrow in the mask (<= max_width_bins) and, when the IQ says
-    the emission is strong and wide, it is excluded too. The grid tolerance is at most 5 % of the spacing and
-    the members must occupy at least half of the grid points they span."""
+    `explained` holds the ids of tracks a manifest entry already explains on physical-layer evidence (an FM station
+    with its pilot, a decoded carrier); they are never comb candidates. A band label alone does not protect a
+    track: the bench comb runs through the 850 MHz uplink, LMR 800 and paging bands as much as through ISM 900.
+    A candidate line is narrow in the mask (<= max(max_width_bins bins, max_width_hz): the detector paints a line
+    6-10 bins wide), present in at least min_persistence of the frames (a weak tooth flickers in the mask) and not a
+    genuinely wide emission at good SNR. The grid tolerance is at most 5 % of the spacing, the members must occupy
+    at least half of the grid points they span (80 % for a comb of fewer than 2 x min_lines teeth; counted as
+    distinct grid points: two tracks on one tooth are one line), and the comb must stand out against the
+    background: among the lines about as persistent as its teeth (>= background_persistence_ratio x the members'
+    median persistence), the densest off-grid residue window of the same width holds fewer than 1 /
+    second_best_factor as many distinct lines. That last test is what a dense uplink band (a hundred narrow bursty
+    tracks landing on any grid by chance) and a crowded FM band (stations on a 200 kHz raster fall into five residue
+    classes of a 1 MHz grid) fail, whatever the spacing tried, while a comb whose teeth are there in every frame
+    still stands out from a band full of weak detections that flicker in half the frames."""
     entries = [e for e in manifest["entries"] if e.get("kind") == "cross_track" and e.get("comb")]
     if not entries or not tracks:
         return
@@ -222,19 +231,44 @@ def comb_pass(tracks: list[Track], manifest: dict, explained: set | None = None)
     c = e["comb"]
     bin_hz = tracks[0].bin_hz
     explained = explained or set()
+    w_max = max(c["max_width_bins"] * bin_hz, float(c.get("max_width_hz", 0.0)))
+    min_pers = float(c.get("min_persistence", 0.5))
+    sb_factor = float(c.get("second_best_factor", 2.0))
+    bg_ratio = float(c.get("background_persistence_ratio", 0.8))
+    min_lines = int(c["min_lines"])
 
-    def is_line(t: Track) -> bool:
-        if t.tid in explained or t.bw > c["max_width_bins"] * bin_hz + 1e-6:
+    def is_narrow(t: Track) -> bool:
+        if t.tid in explained or t.bw > w_max + 1e-6:
             return False
-        if t.iq.get("snr_db", 0.0) >= 6.0 and t.iq.get("obw99_hz") and not t.iq.get("line") and t.iq["obw99_hz"] > 3 * bin_hz:
-            return False          # a strong, genuinely wide emission (a weak station still passes: its width is unknown)
+        if t.iq.get("snr_db", 0.0) >= 10.0 and t.iq.get("obw99_hz") and not t.iq.get("line") and t.iq["obw99_hz"] > w_max:
+            return False          # a strong, genuinely wide emission (below 10 dB the occupied bandwidth is noise-inflated)
         return True
 
-    narrow = [t for t in tracks if is_line(t)]
-    lines = [t for t in narrow if t.temporal in ("continuous", "tdd")]
-    if len(lines) < c["min_lines"]:
+    def distinct(f: np.ndarray, tol: float) -> np.ndarray:
+        # emission frequencies: tracks closer than tol to each other count once (two tracks on one emission)
+        o = np.sort(f)
+        keep = [o[0]]
+        for x in o[1:]:
+            if x - keep[-1] > tol:
+                keep.append(x)
+        return np.array(keep)
+
+    def densest_off_grid(resid_signed: np.ndarray, tol: float) -> int:
+        # the most lines any residue window of width 2 tol holds, at least 2 tol away from the grid
+        o = np.sort(resid_signed[np.abs(resid_signed) > 2 * tol])
+        n, j = 0, 0
+        for i in range(len(o)):
+            while o[i] - o[j] > 2 * tol:
+                j += 1
+            n = max(n, i - j + 1)
+        return n
+
+    narrow = [t for t in tracks if is_narrow(t)]
+    lines = [t for t in narrow if t.persistence >= min_pers]
+    if len(lines) < min_lines:
         return
     fcs = np.array([t.fc for t in lines])
+    pers = np.array([t.persistence for t in lines])
     best = None
     for s0 in sorted(c["spacings_hz"], reverse=True):     # coarsest grid first: a 0.5 MHz grid trivially holds a 1 MHz comb
         if s0 < 3 * bin_hz:
@@ -259,26 +293,41 @@ def comb_pass(tracks: list[Track], manifest: dict, explained: set | None = None)
                 if abs(s - s0) > 0.02 * s0:          # refuse to wander to a different grid
                     s, f0 = float(s0), float(fcs[i])
                     break
-            if len(members) >= c["min_lines"] and (best is None or len(members) > len(best[1])):
-                k = np.round((fcs - f0) / s)
-                resid = np.abs(fcs - f0 - k * s)
-                span_steps = int(np.ptp(k[members])) + 1
-                if len(members) / span_steps < c.get("min_fill", 0.5):
-                    continue          # a few lines far apart on a flexible grid are not a comb
-                best = (s, members, float(np.median(resid[members])), f0, s0, tol)
+            if len(members) < min_lines:
+                continue
+            k = np.round((fcs - f0) / s)
+            resid = np.abs(fcs - f0 - k * s)
+            points = len(set(k[members].astype(int).tolist()))
+            # the background a comb must stand out from: lines about as persistent as its teeth (a busy uplink band
+            # is full of weak detections that flicker in half the frames; the comb's teeth are there in every frame)
+            pers_m = float(np.median([lines[j].persistence for j in members]))
+            fcs_u = distinct(fcs[pers >= bg_ratio * pers_m], tol)
+            ku = np.round((fcs_u - f0) / s)
+            n_second = densest_off_grid(fcs_u - f0 - ku * s, tol)
+            if points < min_lines or points < sb_factor * n_second + 1:
+                continue          # no more lines on the grid than on the densest off-grid residue: background, not a comb
+            span_steps = int(np.ptp(k[members])) + 1
+            fill_min = c.get("min_fill_small", 0.8) if points < 2 * min_lines else c.get("min_fill", 0.5)
+            if points / span_steps < fill_min:
+                continue          # a few lines far apart on a flexible grid are not a comb (a short comb must be nearly gap-free)
+            # a finer grid trivially holds every coarser comb plus any stray line: it replaces a coarser candidate
+            # only when it explains clearly more lines (the 1 MHz comb with one extra line at a half step stays 1 MHz)
+            if best is None or (points > best[1] if s0 == best[5] else points >= 1.5 * best[1]):
+                best = (s, points, members, float(np.median(resid[members])), f0, s0, tol, n_second)
     if best is None:
         return
-    s, members, res, f0, s0, tol = best
+    s, points, members, res, f0, s0, tol, n_second = best
     n = len(members)
-    tag = f"{s / 1e6:.4g}MHz"
+    tag = f"{s0 / 1e6:g}MHz" if abs(s - s0) <= 0.005 * s0 else f"{s / 1e6:.4g}MHz"
     for j in members:
         t = lines[j]
         t.forced_label = f"{e['label']}_{tag}"
-        t.forced_evidence = f"{n} persistent lines <= {c['max_width_bins']} bins wide on a {s / 1e6:.4f} MHz grid (nominal {s0 / 1e6:g} MHz; median residual {res / 1e3:.1f} kHz)"
+        t.forced_evidence = (f"{n} persistent lines <= {w_max / 1e3:.0f} kHz wide on {points} points of a {s / 1e6:.4f} MHz grid "
+                             f"(nominal {s0 / 1e6:g} MHz; median residual {res / 1e3:.1f} kHz; densest off-grid residue holds {n_second})")
     # the same lines flicker in and out of the mask in other frames: narrow tracks on the grid that recur in
-    # at least half the frames are the comb too (a hopper revisits one channel far less often)
+    # at least a quarter of the frames are the comb too (a hopper revisits one channel far less often)
     for t in narrow:
-        if t.forced_label or t.persistence < 0.5 or t.bw > 4 * bin_hz:
+        if t.forced_label or t.persistence < 0.5 * min_pers:
             continue
         k = round((t.fc - f0) / s)
         if abs(t.fc - f0 - k * s) <= tol:
@@ -527,6 +576,18 @@ def score_entry(t: Track, e: dict) -> Match | None:
         slack = max(2.0 * t.bin_hz, 0.10 * bw["nominal"])
         ras = e.get("raster")
         merged_n = 0
+        # A box running edge to edge of the capture is a detector fill, not a channel, and so is a box that the
+        # pilot rule below would otherwise rescue although it is many times the widest box the service can
+        # produce. Only a narrow look that lies entirely inside the allocation may be filled edge to edge by a
+        # real emission (2026-11-16: the native-geometry M12-S painted 490 MHz of the 4-496 MHz look in every
+        # frame and two real TV pilots inside that fill made it an ATSC_TV label). Quantised narrow boxes (a
+        # 12.5 kHz channel spanning several coarse bins) are not touched: the width rule below handles them.
+        cap_lo, cap_hi = t.fc_cap - t.rate / 2, t.fc_cap + t.rate / 2
+        whole_capture_inside = any(lo - tol <= cap_lo and cap_hi <= hi + tol for lo, hi in e["freq_ranges_hz"])
+        widest = bw["max"] * max(1, int(e.get("raster_multiples") or 1))
+        edge_to_edge = t.f_lo <= cap_lo + 1.01 * t.bin_hz and t.f_hi >= cap_hi - 1.01 * t.bin_hz
+        if not whole_capture_inside and (edge_to_edge or (pilots and t.bw > 4.0 * widest)):
+            return None
         if ras and e.get("raster_multiples") and not t.cut and t.bw > bw["max"]:
             # adjacent channels merged into one box (e.g. three 6 MHz TV channels): accept n x spacing when the
             # lower edge sits on a channel edge of the grid (box width, not the PSD width, which may run on
@@ -543,8 +604,6 @@ def score_entry(t: Track, e: dict) -> Match | None:
             # (merged channels, overshooting edges, cut by the capture edge); bandwidth is verified in step 6
             ev.append(f"box {t.bw / 1e6:.2f} MHz spans {max(1, int(round(t.bw / (e['pilot_grids'][0]['spacing_hz']))))} channel(s)")
         elif t.cut:
-            cap_lo, cap_hi = t.fc_cap - t.rate / 2, t.fc_cap + t.rate / 2
-            whole_capture_inside = any(lo - tol <= cap_lo and cap_hi <= hi + tol for lo, hi in e["freq_ranges_hz"])
             if t.bw > bw["max"] + slack and not (merged_n or whole_capture_inside):
                 return None
             conf *= 0.9

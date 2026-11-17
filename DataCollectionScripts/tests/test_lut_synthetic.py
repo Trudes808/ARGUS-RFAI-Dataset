@@ -33,6 +33,7 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--reuse", action="store_true", help="do not regenerate; classify / score what is in --out")
     ap.add_argument("--no-classify", action="store_true", help="score the existing report only")
+    ap.add_argument("--attempt-decode", action="store_true", help="pass --attempt-decode to lut_classify.py and score the decodes")
     ap.add_argument("--results", default=str(HERE / "results"))
     a = ap.parse_args()
     out = Path(a.out).expanduser()
@@ -45,7 +46,7 @@ def main() -> int:
             cmd += ["--entries", *a.entries]
         subprocess.run(cmd, check=True)
     if not a.no_classify:
-        subprocess.run([py, str(HERE.parent / "lut_classify.py"), str(out), "--no-write", "--report-dir", str(out / "report"), "--quiet"], check=True)
+        subprocess.run([py, str(HERE.parent / "lut_classify.py"), str(out), "--no-write", "--report-dir", str(out / "report"), "--quiet"] + (["--attempt-decode"] if a.attempt_decode else []), check=True)
     lib = mio.load_library()
     by_id = mio.entry_by_id(lib)
     truths = {}
@@ -79,6 +80,9 @@ def main() -> int:
                         "sdw_sq_spacing": r["sdw_sq_spacing"] if r else "", "sdw_ofdm_scs_hz": r["sdw_ofdm_scs_hz"] if r else "", "sdw_ofdm_cp_us": r["sdw_ofdm_cp_us"] if r else "",
                         "sdw_burst_ms": r["sdw_burst_ms"] if r else "", "sdw_pri_ms": r["sdw_pri_ms"] if r else "", "sdw_gap_us": r["sdw_gap_us"] if r else "", "sdw_period_ms": r["sdw_period_ms"] if r else "",
                         "sdw_chirp_hz_s": r["sdw_chirp_hz_s"] if r else "", "sdw_dev_hz": r["sdw_dev_hz"] if r else "", "sdw_pulse_us": r["sdw_pulse_us"] if r else "",
+                        "decoded": (r.get("decoded", "") if r else ""), "decode_summary": (r.get("decode_summary", "") if r else "")[:300],
+                        "decode_attempts": (r.get("decode_attempts", "") if r else ""), "decodable": ";".join(by_id[t["entry"]].get("decode", [])),
+                        "truth_params": json.dumps(t.get("params", {}), default=str)[:300],
                         "evidence": (r["evidence"] if r else "")[:500]})
     with open(res_dir / "lut_synthetic_rows.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(results[0].keys()))
@@ -102,17 +106,33 @@ def main() -> int:
          "| outcome | captures | share |", "|---|---|---|"]
     for k in ("exact", "parent", "signal", "wrong", "none"):
         L.append(f"| {k} | {tot.get(k, 0)} | {100 * tot.get(k, 0) / max(n, 1):.1f} % |")
+    dec_rows = [r for r in results if r["decodable"]]
+    dec_ok = [r for r in dec_rows if r["decoded"]]
+    if dec_rows:
+        L += ["", f"Decode attempted on the {len(dec_rows)} captures of entries with decoders: {len(dec_ok)} decoded "
+              f"({', '.join(f'{k} {v}' for k, v in Counter(r['decoded'] for r in dec_ok).most_common())}); "
+              f"{sum(1 for r in dec_ok if r['status'] == 'exact')} of them labelled exactly." if a.attempt_decode else
+              f"{len(dec_rows)} captures belong to entries with decoders (run with --attempt-decode to score them)."]
     L += ["", "exact = the entry's own label (variant suffixes allowed); parent = the parent / child entry's label; signal = left unlabelled; wrong = another label.", "",
-          "| entry | draws | exact | parent | signal | wrong | verified descriptor fields (count over draws) |", "|---|---|---|---|---|---|---|"]
+          "| entry | draws | exact | parent | signal | wrong | decoded | verified descriptor fields (count over draws) |", "|---|---|---|---|---|---|---|---|"]
+    n_dec = defaultdict(int)
+    for r in results:
+        if r["decoded"]:
+            n_dec[r["entry"]] += 1
     for eid in sorted(per):
         c = per[eid]
         vs = ", ".join(f"{k} {v}" for k, v in ver[eid].most_common())
-        L.append(f"| {eid} | {n_ver[eid]} | {c.get('exact', 0)} | {c.get('parent', 0)} | {c.get('signal', 0)} | {c.get('wrong', 0) + c.get('none', 0)} | {vs} |")
+        dec = (f"{n_dec[eid]}" if by_id[eid].get("decode") else "-")
+        L.append(f"| {eid} | {n_ver[eid]} | {c.get('exact', 0)} | {c.get('parent', 0)} | {c.get('signal', 0)} | {c.get('wrong', 0) + c.get('none', 0)} | {dec} | {vs} |")
     wrong = [r for r in results if r["status"] in ("wrong",)]
     if wrong:
         L += ["", "Wrong labels:", ""]
         for r in wrong:
             L.append(f"- {r['capture']}: {r['estimate']} ({r['confidence']}) for {r['label']}: {r['evidence'][:200]}")
+    if a.attempt_decode and dec_rows:
+        L += ["", "## Decodes", "", "| capture | SNR dB | label | decoded | summary |", "|---|---|---|---|---|"]
+        for r in sorted(dec_rows, key=lambda r: (r["entry"], r["snr_db"])):
+            L.append(f"| {r['capture'][:70]} | {r['snr_db']} | {r['estimate']} | {r['decoded'] or '-'} | {r['decode_summary'][:140] or r['decode_attempts']} |")
     (res_dir / "lut_synthetic_eval.md").write_text("\n".join(L) + "\n")
     print("\n".join(L[:12]))
     print(f"wrote {res_dir / 'lut_synthetic_eval.md'}")

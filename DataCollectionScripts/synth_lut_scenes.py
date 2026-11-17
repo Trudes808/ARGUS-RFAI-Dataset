@@ -23,6 +23,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import decode_waveforms as dw  # noqa: E402
 import manifest_io as mio  # noqa: E402
 import synth_modulators as sm  # noqa: E402
 
@@ -61,8 +62,11 @@ def burst_schedule(rng, dur, rate_per_s, burst_len_fn, t_start=0.003):
 def r_fm_stereo(e, d, syn, rng, dur):
     fs_e = 1.0e6
     hd = rng.random() < float(syn.get("hd_prob", 0.3))
-    x = sm.fm_stereo(fs_e, dur, float(syn.get("audio_bw_hz", 15e3)), bool(syn.get("pilot", True)), bool(syn.get("rds", True)), hd, rng=rng)
-    return x, fs_e, (400e3 if hd else 190e3), None, {"hd": hd}
+    pi = int(rng.integers(0x1000, 0xFFFF))
+    ps = "K" + "".join(chr(int(c)) for c in rng.integers(65, 91, 3)) + " FM "
+    rds_bits = dw.rds_groups(pi, ps, int(rng.integers(1, 30)), 40, rng) if syn.get("rds", True) else None
+    x = sm.fm_stereo(fs_e, dur, float(syn.get("audio_bw_hz", 15e3)), bool(syn.get("pilot", True)), bool(syn.get("rds", True)), hd, rng=rng, rds_bits=rds_bits)
+    return x, fs_e, (400e3 if hd else 190e3), None, {"hd": hd, "rds_pi": f"{pi:04X}", "rds_ps": ps.strip()}
 
 
 def r_nbfm_voice(e, d, syn, rng, dur):
@@ -110,10 +114,19 @@ def r_ofdm_continuous(e, d, syn, rng, dur):
     bw = min(float(_pick(rng, syn.get("bw_hz"), 9e6)), 0.75 * MAX_RATE)
     n_used = int(bw / scs)
     n_used -= n_used % 2
-    N = 1 << int(math.ceil(math.log2(n_used * 1.25)))
+    N = sm.ofdm_fft_size(n_used)
     fs_e = N * scs
-    x = sm.ofdm(fs_e, scs, cp, n_used, dur, rng=rng)
-    return x[: int(dur * fs_e)], fs_e, n_used * scs, None, {"scs_hz": scs, "cp_s": cp, "bw_hz": bw}
+    params = {"scs_hz": scs, "cp_s": cp, "bw_hz": bw}
+    sym_fn = None
+    if syn.get("lte_sync"):
+        nid1, nid2 = int(rng.integers(0, 168)), int(rng.integers(0, 3))
+        sym_fn = dw.lte_sync_overwrite(nid1, nid2, N, scs, cp)
+        params.update({"pci": 3 * nid1 + nid2, "nid1": nid1, "nid2": nid2})
+    if syn.get("raster_hz"):
+        params["raster_hz"] = float(syn["raster_hz"])
+    cp_pat = [5.21e-6] + [4.69e-6] * 6 if syn.get("lte_sync") else None        # LTE normal CP: 160 / 144 samples per slot
+    x = sm.ofdm(fs_e, scs, cp, n_used, dur, rng=rng, sym_fn=sym_fn, cp_pattern_s=cp_pat)
+    return x[: int(dur * fs_e)], fs_e, n_used * scs, None, params
 
 
 def r_ofdm_tdd(e, d, syn, rng, dur):
@@ -206,19 +219,25 @@ def r_fsk_burst(e, d, syn, rng, dur):
     fs_e = max(8 * rs, 4 * (h * rs + rs))
     buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
     on = []
+    codec = syn.get("codec")
     if syn.get("frame_s"):                       # TDMA slots (DECT): active slots of every frame
         frame, nslots = float(syn["frame_s"]), int(syn.get("slots_per_frame", 24))
         slot = frame / nslots
         n_active = int(_pick(rng, syn.get("active_slots", [1, 2]), 1))
         slots = sorted(rng.choice(nslots, n_active, replace=False))
         bits = int(_pick(rng, syn.get("burst_bits", [420]), 420))
+        rfpi = bytes(int(v) for v in rng.integers(0, 256, 5))
         t = 0.001
         while t + frame < dur:
             for sl in slots:
                 t0 = t + sl * slot
-                x = sm.cpm(sm.fsk_bits(bits, levels, rng=rng), rs, fs_e, h, bt, levels)
+                if codec == "dect":
+                    b = dw.dect_packet_bits(sl < nslots // 2, rfpi if rng.random() < 0.5 else None, rng).astype(np.float64) * 2 - 1
+                else:
+                    b = sm.fsk_bits(bits, levels, rng=rng)
+                x = sm.cpm(b, rs, fs_e, h, bt, levels)
                 _place(buf, x, fs_e, t0)
-                on.append((t0, bits / rs))
+                on.append((t0, len(b) / rs))
             t += frame
     elif syn.get("slot_s"):                      # slotted (AIS): bursts start on slot boundaries
         slot = float(syn["slot_s"])
@@ -241,7 +260,12 @@ def r_fsk_burst(e, d, syn, rng, dur):
             return float(_pick(rng, bs, 0.01))
         on = burst_schedule(rng, dur, rate, blen)
         for t0, dl in on:
-            x = sm.cpm(sm.fsk_bits(int(dl * rs) + 1, levels, rng=rng), rs, fs_e, h, bt, levels)
+            nb = int(dl * rs) + 1
+            if codec == "uat":
+                b = dw.uat_frame_bits(nb > 3000, nb, rng).astype(np.float64) * 2 - 1
+            else:
+                b = sm.fsk_bits(nb, levels, rng=rng)
+            x = sm.cpm(b, rs, fs_e, h, bt, levels)
             _place(buf, x[: int(dl * fs_e)], fs_e, t0)
     bw = 2 * (0.5 * h * rs) + rs * (1.0 if bt else 1.5)
     return buf, fs_e, bw, on, {"rs": rs, "h": h, "bt": bt, "levels": levels}
@@ -252,19 +276,32 @@ def r_lmr_mix(e, d, syn, rng, dur):
     ch = float(syn.get("channel_hz", 12.5e3))
     if kind == "nbfm_voice":
         return r_nbfm_voice(e, d, {"deviation_hz": 2.5e3 if ch <= 12.5e3 else 5e3, "audio_bw_hz": 3e3, "ptt": True}, rng, dur)
-    if kind == "c4fm":
-        x, fs_e, bw, on, p = r_fsk_burst(e, d, {"symbol_rate_hz": 4800.0, "h": 0.75, "bt": None, "levels": 4, "burst_s": [0.5, 3.0], "rate_per_s": 0.4}, rng, dur)
-        return x, fs_e, 12.5e3, on, {**p, "kind": "c4fm"}
-    if kind == "dmr_sub":                        # subscriber: 27.5 ms bursts every 60 ms, 4FSK 4800
+    if kind == "c4fm":                           # P25 phase 1 voice: HDU + LDU1/LDU2 frames (180 ms each) with the NAC
+        rs, fs_e = 4800.0, 48e3
+        buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
+        nac = int(rng.integers(0, 0x1000))
+        on = burst_schedule(rng, dur, 0.4, lambda: float(rng.uniform(0.5, 3.0)))
+        for t0, dl in on:
+            n_frames = max(1, int(dl / 0.180))
+            duids = [0] + [5, 10] * n_frames
+            sym = np.concatenate([dw.p25_frame_symbols(nac, du, 800, rng) for du in duids[:n_frames]])
+            x = sm.cpm(sym, rs, fs_e, 0.75, None, 4)
+            _place(buf, x[: int(dl * fs_e)], fs_e, t0)
+        return buf, fs_e, 12.5e3, on, {"kind": "c4fm", "nac": f"{nac:03X}"}
+    if kind in ("dmr_sub", "dmr_bs"):            # DMR: 27.5 ms bursts, every 60 ms (one slot, subscriber) or 30 ms (base, both slots)
         rs, fs_e = 4800.0, 48e3
         buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
         on, t = [], 0.002
+        step = 0.060 if kind == "dmr_sub" else 0.030
+        k = 0
         while t + 0.0275 < dur:
-            x = sm.cpm(sm.fsk_bits(132, 4, rng=rng), rs, fs_e, 0.81, None, 4)
+            name = "MS_voice" if kind == "dmr_sub" else ("BS_voice" if k % 2 == 0 else "BS_data")
+            x = sm.cpm(dw.dmr_burst_symbols(name, rng), rs, fs_e, 0.81, None, 4)
             _place(buf, x[: int(0.0275 * fs_e)], fs_e, t)
             on.append((t, 0.0275))
-            t += 0.060
-        return buf, fs_e, 12.5e3, on, {"kind": "dmr_sub"}
+            t += step
+            k += 1
+        return buf, fs_e, 12.5e3, on, {"kind": kind}
     if kind == "fsk2_control":                   # trunked control channel: continuous 2-FSK
         rs = float(_rng_choice(rng, [9600.0, 3600.0]))
         fs_e = 100e3
@@ -308,10 +345,12 @@ def r_adsb_ppm(e, d, syn, rng, dur):
     buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
     rate = float(_pick(rng, syn.get("rate_per_s"), 100))
     on = burst_schedule(rng, dur, rate, lambda: 120e-6 if rng.random() < 0.7 else 64e-6)
+    fleet = [int(v) for v in rng.integers(0xA00000, 0xAFFFFF, int(rng.integers(2, 8)))]
     for t0, dl in on:
-        msg = sm.adsb_message(fs_e, long=dl > 100e-6, rng=rng)
+        bits = dw.modes_random_message(rng, _rng_choice(rng, fleet), long=dl > 100e-6)
+        msg = dw.modes_ppm_waveform(fs_e, bits)
         _place(buf, msg * float(rng.uniform(0.3, 1.0)), fs_e, t0)
-    return buf, fs_e, 4e6, on, {"rate_per_s": rate}
+    return buf, fs_e, 4e6, on, {"rate_per_s": rate, "icao": [f"{v:06X}" for v in fleet]}
 
 
 def r_ssr_interrogation(e, d, syn, rng, dur):
@@ -383,19 +422,27 @@ def r_oqpsk_burst(e, d, syn, rng, dur):
     fb = syn.get("frame_bytes", [11, 127])
     on = []
     t = 0.002
+    pan = int(rng.integers(1, 0xFFFE))
+    seq = int(rng.integers(0, 256))
     while t < dur - 0.01:
         nb = int(rng.integers(fb[0], fb[1] + 1))
-        dl = nb * 8 / 250e3
-        _place(buf, sm.oqpsk_halfsine(fs_e, cr, int(dl * cr), rng=rng), fs_e, t)
+        psdu = dw.zigbee_frame_bytes(bytes(int(v) for v in rng.integers(0, 256, max(nb - 11, 0))), seq, pan, int(rng.integers(0, 0xFFF0)), int(rng.integers(1, 0xFFF0)))
+        x = dw.oqpsk_chips_waveform(fs_e, dw.zigbee_chips(dw.zigbee_ppdu_symbols(psdu)), cr)
+        dl = len(x) / fs_e
+        _place(buf, x, fs_e, t)
         on.append((t, dl))
         t += dl
         if rng.random() < float(syn.get("ack_prob", 0.5)):
             t += 192e-6
-            _place(buf, sm.oqpsk_halfsine(fs_e, cr, 704, rng=rng), fs_e, t)
-            on.append((t, 352e-6))
-            t += 352e-6
+            ack = bytes([0x02, 0x00, seq & 0xFF])
+            ack = ack + dw.crc16_kermit(ack).to_bytes(2, "little")
+            xa = dw.oqpsk_chips_waveform(fs_e, dw.zigbee_chips(dw.zigbee_ppdu_symbols(ack)), cr)
+            _place(buf, xa, fs_e, t)
+            on.append((t, len(xa) / fs_e))
+            t += len(xa) / fs_e
+        seq = (seq + 1) & 0xFF
         t += float(rng.exponential(1.0 / rate))
-    return buf, fs_e, 2.5e6, on, {}
+    return buf, fs_e, 2.5e6, on, {"pan": f"{pan:04X}"}
 
 
 def r_bt_classic(e, d, syn, rng, dur):
@@ -425,10 +472,17 @@ def r_ble_adv(e, d, syn, rng, dur):
     buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
     interval = float(_pick(rng, syn.get("adv_interval_s", [0.02, 1.0]), 0.1))
     pdu = int(_pick(rng, syn.get("pdu_bytes", [10, 47]), 30))
+    fc_adv = float(_rng_choice(rng, [2402e6, 2426e6, 2480e6]))
+    channel = dw.BLE_ADV_CHANNELS[fc_adv]
+    mac = bytes(int(v) for v in rng.integers(0, 256, 6))
+    mac = bytes([mac[0] | 0xC0]) + mac[1:]
+    name = _rng_choice(rng, ["", "", "ARGUS-" + str(int(rng.integers(100, 999))), "Tile", "LE-Headset"])
     on, t = [], 0.003
     while t + 1e-3 < dur:
-        dl = (pdu + 1 + 4 + 2 + 3) * 8 / rs
-        _place(buf, sm.cpm(sm.fsk_bits(int(dl * rs), rng=rng), rs, fs_e, float(syn.get("h", 0.5)), float(syn.get("bt", 0.5))), fs_e, t)
+        pdu_bytes = dw.ble_adv_pdu(mac, 0 if rng.random() < 0.7 else 2, name, rng, max(0, min(pdu - 9 - (len(name) + 2 if name else 0), 20)))
+        bits = dw.ble_adv_bits(pdu_bytes, channel).astype(np.float64) * 2 - 1
+        dl = len(bits) / rs
+        _place(buf, sm.cpm(bits, rs, fs_e, float(syn.get("h", 0.5)), float(syn.get("bt", 0.5))), fs_e, t)
         on.append((t, dl))
         t2 = t + dl
         if rng.random() < float(syn.get("scan_req_prob", 0.3)):
@@ -437,7 +491,7 @@ def r_ble_adv(e, d, syn, rng, dur):
             on.append((t2, 176e-6))
         t += interval + float(rng.uniform(0, 0.01))
     # the detector paints the -20 dB width of a GFSK channel (~1.5 MHz), not the 99 % width
-    return buf, fs_e, 1.5e6, on, {"adv_interval_s": interval}
+    return buf, fs_e, 1.5e6, on, {"adv_interval_s": interval, "f_center_hz": fc_adv, "channel": channel, "adv_addr": ":".join(f"{x:02X}" for x in mac)}
 
 
 def r_ook_burst(e, d, syn, rng, dur):
@@ -460,13 +514,61 @@ def r_ook_burst(e, d, syn, rng, dur):
     return buf, fs_e, 4 * br, on, {"bitrate": br}
 
 
+def r_paging(e, d, syn, rng, dur):
+    """POCSAG batches (preamble + sync + codewords, 512/1200/2400 bps) or a continuous FLEX stream (1600 bps)."""
+    codec = str(_rng_choice(rng, syn.get("codecs", ["pocsag1200", "flex1600"])))
+    fs_e = 76800.0
+    buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
+    if codec.startswith("flex"):
+        rs, h = 1600.0, 2 * 4.8e3 / 1600.0
+        cyc, frm = int(rng.integers(0, 15)), int(rng.integers(0, 128))
+        bits = np.concatenate([dw.flex_frame_bits(cyc, (frm + k) % 128, rng) for k in range(int(math.ceil(dur / 1.875)) + 1)])
+        off = int(rng.integers(0, 3000))
+        bits = bits[off: off + int(dur * rs) + 2]
+        x = sm.cpm(bits.astype(np.float64) * 2 - 1, rs, fs_e, h, None, 2)
+        return x[: int(dur * fs_e)], fs_e, 20e3, None, {"codec": codec, "cycle": cyc, "frame": frm}
+    rs = float(codec[6:])
+    h = 2 * 4.5e3 / rs
+    rate = float(_pick(rng, syn.get("rate_per_s"), 1.0))
+    on = burst_schedule(rng, dur, rate, lambda: float(_pick(rng, syn.get("burst_s", [0.4, 3.0]), 1.0)))
+    rics = []
+    for t0, dl in on:
+        n_batches = max(1, int((dl * rs - 576) / 544))
+        bits, r = dw.pocsag_stream(rng, n_batches)
+        rics += r
+        x = sm.cpm(bits.astype(np.float64) * 2 - 1, rs, fs_e, h, None, 2)
+        _place(buf, x[: int(dl * fs_e)], fs_e, t0)
+    return buf, fs_e, 20e3, on, {"codec": codec, "rics": rics[:12]}
+
+
+def r_ism900_mix(e, d, syn, rng, dur):
+    """902-928 MHz devices: a SUN-FSK sensor (random GFSK packets) or an ERT meter (OOK Manchester SCM / SCM+ packets)."""
+    kind = str(_rng_choice(rng, syn.get("kinds", ["sun_fsk", "ert"])))
+    if kind == "sun_fsk":
+        x, fs_e, bw, on, p = r_fsk_burst(e, d, {k: v for k, v in syn.items() if k not in ("kind", "kinds")}, rng, dur)
+        return x, fs_e, bw, on, {**p, "kind": kind}
+    fs_e = 524288.0
+    buf = np.zeros(int(dur * fs_e), dtype=np.complex64)
+    on, ids = [], []
+    t = float(rng.uniform(0.005, 0.2))
+    while t < dur - 0.02:
+        eid = int(rng.integers(1, 2 ** 26))
+        bits = dw.scm_packet(eid, int(rng.integers(0, 16)), int(rng.integers(0, 2 ** 24))) if rng.random() < 0.6 else dw.scmplus_packet(eid, 0x9C, int(rng.integers(0, 2 ** 24)))
+        ids.append(eid)
+        x = np.repeat(dw.ert_manchester_chips(bits), 16).astype(np.complex64)
+        _place(buf, x, fs_e, t)
+        on.append((t, len(x) / fs_e))
+        t += len(x) / fs_e + float(rng.uniform(0.05, 0.4))
+    return buf, fs_e, 120e3, on, {"kind": "ert", "ert_ids": ids[:8]}
+
+
 def r_magnetron(e, d, syn, rng, dur):
     fs_e = 40e6
     x = sm.magnetron(fs_e, dur, float(syn.get("sweep_hz", 10e6)), float(syn.get("mains_hz", 60.0)), rng=rng)
     return x, fs_e, 2 * float(syn.get("sweep_hz", 10e6)), None, {}
 
 
-RECIPES = {"fm_stereo": r_fm_stereo, "nbfm_voice": r_nbfm_voice, "am_voice": r_am_voice, "am_tones": r_am_tones, "am_msk": r_am_msk,
+RECIPES = {"paging": r_paging, "ism900_mix": r_ism900_mix, "fm_stereo": r_fm_stereo, "nbfm_voice": r_nbfm_voice, "am_voice": r_am_voice, "am_tones": r_am_tones, "am_msk": r_am_msk,
            "vsb8": r_vsb8, "ofdm_continuous": r_ofdm_continuous, "ofdm_tdd": r_ofdm_tdd, "scfdma_bursts": r_scfdma_bursts, "wifi_ofdm": r_wifi_ofdm,
            "fsk_burst": r_fsk_burst, "lmr_mix": r_lmr_mix, "psk_burst": r_psk_burst, "psk_continuous": r_psk_continuous, "adsb_ppm": r_adsb_ppm,
            "ssr_interrogation": r_ssr_interrogation, "dme_pairs": r_dme_pairs, "radar_pulses": r_radar_pulses, "lora": r_lora,
@@ -563,15 +665,17 @@ def generate(e: dict, rng, out: Path, draw: int, dur: float, snr_range, rates_ar
         rate = bg_rate
     else:
         rate = capture_rate(e, rng, bw, rates_arg)
-    f_em = pick_center(e, rng, bw)
+    f_em = float(params["f_center_hz"]) if params.get("f_center_hz") else pick_center(e, rng, bw)
+    if params.get("raster_hz"):
+        f_em = round(f_em / float(params["raster_hz"])) * float(params["raster_hz"])
     # capture centre such that the emission is inside, away from DC by at least 5 % of the rate
     while True:
         off = float(rng.uniform(-0.35, 0.35)) * rate
         if abs(off) > 0.05 * rate and abs(off) + bw / 2 < 0.47 * rate:
             break
-    fc = f_em - off
     bin_hz = rate / 1024
-    off = round(off / bin_hz) * bin_hz
+    off = round(off / bin_hz) * bin_hz          # rounded first: the capture centre must put the emission exactly at f_em
+    fc = f_em - off
     xs = sm.resample_to(x, fs_e, rate)
     n = int(dur * rate)
     xs = np.concatenate([xs, np.zeros(max(n - len(xs), 0), dtype=np.complex64)])[:n]

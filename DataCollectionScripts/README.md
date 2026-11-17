@@ -45,7 +45,7 @@ stress set, e.g. channel 6 cut at the edge of a 40 MHz look). Options:
 | `--gain auto` (default) / `--gain 40` | 0.2 s probes per look: -15 dB when peak > 0.5 FS, +15 dB when rms < -40 dBFS, up to three steps |
 | `--channel 1`, or `--channel-below 1 --channel-above 0 --split-hz 1.5e9` | one RX channel, or one antenna per frequency range (the N320 bench used a VERT900 on ch 1 and a VERT2450 on ch 0) |
 | `--args "addr=192.168.10.2"`, `--radio n320` | UHD device args; the radio family is discovered (`uhd.find`) and only used to snap rates to master-clock / decimation values (X4xx: even decimations only, like the detector app) |
-| `--survey` | probe the power of every look (0.2 s) and keep no IQ: a quick site survey into `survey_<ts>.csv` |
+| `--survey` | probe the power of every look (0.2 s) and keep no IQ: a quick site survey into `survey_<ts>.csv` (peak, rms and the spectral span, a flat spectrum meaning no antenna on that port; with a fixed `--gain` the probe still runs once at that gain) |
 | `--dry-run`, `--skip-existing`, `--no-shm` | plan only; resume; stream straight to disk instead of `/dev/shm` |
 
 Each capture lands in its own folder, named as the stress set was:
@@ -62,6 +62,11 @@ radio / serial / channel / antenna, master clock and decimation, gain, overflow 
 peak / rms / clipping statistics of the recording, so a capture can always be traced back to how it was made.
 Rates are chosen from the radio's achievable set: on an X410 a 200 MSps request becomes 245.76 MSps
 (491.52 / 2), on an N320 it stays 200 MSps (master clock 200 MHz).
+
+A `--freqs` look without `--entries` takes its label from the manifest entry covering the centre; when the centre sits
+between services (400 MHz-wide looks) the service with the largest overlap of the look's span names it, and the
+receiver-artefact entries (spur comb, DC spur) never do. `--max-gb` caps the duration (a 1 s look at 491.52 MSps is
+1.97 GB; pass `--max-gb 2.1`).
 
 Do not centre a look on a narrow channel you care about: a zero-IF receiver puts its DC / LO leakage spur
 at the capture centre, and the detector flags it (the look-up then names it `~DC_spur_LO_leakage`). The
@@ -110,8 +115,10 @@ What it does, per capture:
 5. **Decision**: the best entry must pass its tier threshold (A 0.75, B 0.85), have every feature it
    `requires` positively verified (not merely unresolvable), and beat every other candidate by a margin;
    generic entries (`catch_all`) yield to specific ones in the same band. A cross-track pass labels regular
-   combs of narrow persistent lines as `~spur_comb_<spacing>MHz` (receiver reference harmonics), and a narrow
-   continuous line at the capture centre as `~DC_spur_LO_leakage`.
+   combs of narrow persistent lines as `~spur_comb_<spacing>MHz` (receiver reference harmonics: five or more
+   lines on one exact spacing, at least three times as many as any off-grid residue of that spacing holds,
+   whatever band label the teeth would otherwise get), and a narrow continuous line at the capture centre as
+   `~DC_spur_LO_leakage`.
 6. **Output**: `lookup_regions.csv` (one row per track with every measurement, the label, confidence and
    evidence) and `lookup_summary.json`. Unless `--no-write`, each snippet annotation gets
    `core:label = "~<label>"` (the detector's own label is kept in `argus:detector_label`, with
@@ -120,7 +127,7 @@ What it does, per capture:
 
 The `~` marks an estimate. Labels are the manifest `label` field, e.g. `~FM_broadcast`, `~ATSC_TV`,
 `~cellular_downlink_850`, `~WiFi_2.4GHz`, `~Bluetooth_LE`, `~ADS-B_Mode-S_1090`, `~Pager_FLEX_POCSAG_929`,
-`~ISM_900MHz_device` (deliberately coarse), `~spur_comb_1.002MHz`.
+`~ISM_900MHz_device` (deliberately coarse), `~spur_comb_1MHz`.
 
 What is **not** labelled, by design: anything outside its normal band, off its channel grid when the grid
 can be checked, wider than its service allows (two merged FM stations, a painted-over area), ambiguous
@@ -260,7 +267,12 @@ scores the SDW against the library field by field. The design notes are in
 | `synth_lut_scenes.py`, `synth_modulators.py` | Synthetic captures for every entry with a `synth` recipe, generated from the entry's own descriptor (CPM/GFSK, FM stereo multiplex with pilot/RDS/HD sidebands, AM, OFDM with any numerology and TDD pattern, SC-FDMA bursts, 8-VSB with pilot, PPM/pulse trains, DME pairs, radar scans, LoRa chirps, O-QPSK, Barker DSSS, OOK, magnetrons) at a legal channel, a sweep sample rate and a random SNR, with the ground-truth boxes written as annotations. |
 | `tests/test_measure_synthetic.py` | Unit test of the measurement: 17 emissions with known parameters (BLE, Wi-Fi, LTE, NR TDD, FM, FM+HD, NBFM, AM, VOR, C4FM, POCSAG, DECT, ADS-B, DME, LoRa, 8-VSB, Zigbee). |
 | `tests/test_lut_synthetic.py` | End-to-end on synthetic captures: label outcome and verified fields per entry (`tests/results/lut_synthetic_eval.md`, `lut_synthetic_rows.csv`). |
-| `tests/evaluate_lut_on_captures.py` | Real captures: plausibility of every label against the capture span, share of labels with verified descriptors, and the measured-parameter distributions per label next to the synthetic ones (`tests/results/lut_real_eval.md`). |
+| `tests/evaluate_lut_on_captures.py` | Real captures: plausibility of every label against the capture span, share of labels with verified descriptors, protocol decodes, and the measured-parameter distributions per label next to the synthetic ones (`tests/results/lut_real_eval.md`). |
+| `decode_waveforms.py` | The attempt-to-decode layer (`lut_classify.py --attempt-decode`): protocol decoders whose checks random data cannot pass, so a success is definitive for the entry and names the variant, while a failure is neutral. ADS-B / Mode S (preamble, PPM, CRC-24 with single-bit correction: ICAO addresses, call signs), FM RDS (57 kHz BPSK, biphase, block syndromes: PI code and call sign, PTY, PS name), Bluetooth LE advertising (access address, de-whitening, CRC-24: advertiser addresses, PDU types, names), LTE (PSS Zadoff-Chu + SSS m-sequences repeating every 5 ms: physical cell identity, FDD/TDD), POCSAG (sync, BCH(31,21): baud, RICs), FLEX (A word + marker, FIW BCH: mode, cycle, frame), Itron ERT (SCM BCH / SCM+ CRC: meter id, type, reading), P25 (frame sync, NID BCH(63,16): NAC, DUID), DMR (48-bit sync patterns, 30 / 60 ms bursts), DECT (S-field, A-field R-CRC: RFPI), IEEE 802.15.4 (chip despreading, FCS: PAN, addresses), UAT 978 (36-bit sync words). The same module holds the frame encoders the synthetic scenes use, so every synthetic emission of a decodable entry carries valid frames. |
+| `tests/test_decode_synthetic.py` | Round trip of every decoder on modulated frames at 10 / 15 / 20 / 30 dB with a random carrier offset (`tests/results/decode_synthetic_eval.md`). |
+| `tests/test_comb_pass.py` | Unit test of the cross-track spur-comb pass on synthetic track sets: the bench comb inside the 850 MHz uplink band next to real uplink blobs, five teeth in a 5 MHz paging capture next to two decoded pagers, a dense uplink band of a hundred narrow bursty tracks and a crowded FM band (where no comb may form), 300 seeds each. |
+| `tests/x410_491_sweep.sh` / `tests/x410_491_lut_run.sh` | The 400 MHz-wide looks at the X410's full 491.52 MSps (eleven centres, 1 s each) that the N320 could not record, and the chain that runs the library look-up on them: Holohub `preprocess_dataset.py --full-resolution` (M12-S at its native 1024-point geometry), `lut_classify.py --attempt-decode`, the evaluation and the spectrogram figures. Results: `tests/results/lut_real_eval_x410_491.md`, `figures/lut_spectrograms_x410_491.jpg`. |
+| `tests/plot_lut_spectrograms.py` | Spectrograms of the test captures with the detector's boxes, the labels and `[decoded <protocol>]` on the decoded tracks (`tests/results/spectrograms/`, montages in `figures/`). |
 
 ```bash
 python3 lut_classify.py ~/captures/site_a_preprocessed                          # SDW + library match, labels written
@@ -270,20 +282,76 @@ python3 synth_lut_scenes.py --out /tmp/lut_synth --draws 3                      
 python3 tests/test_lut_synthetic.py --out /tmp/lut_synth --draws 3               # generate + classify + score
 python3 tests/evaluate_lut_on_captures.py --report ~/captures/site_a_preprocessed
 python3 collect_common_waveforms.py --library lut_library_usa.yaml --entries uat_978,dect_6_0 ...   # looks for library-only entries
+python3 lut_classify.py ~/captures/site_a_preprocessed --attempt-decode                         # + protocol decoders
+python3 decode_waveforms.py <capture>.sigmf-meta --protocol rds --fc 93.7e6                     # one decoder, one emission
+python3 tests/test_decode_synthetic.py                                                          # decoder round trips
+python3 tests/test_comb_pass.py                                                                 # spur-comb pass on synthetic track sets
+python3 tests/test_lut_synthetic.py --out /tmp/lut_synth --draws 3 --attempt-decode             # synthetic set incl. decodes
+python3 tests/plot_lut_spectrograms.py <dir>_preprocessed --report <dir>_preprocessed --select fm_broadcast --montage real.jpg
 ```
 
-![Detector boxes and ELINT-style labels on six looks of the 2026-11-10 sweep](figures/lut_overlays_sweep_m12s.jpg)
+**Decoding.** With `--attempt-decode` the classifier runs, per track, the decoders of the chosen entry, of the
+runners-up and of any entry whose decodable channel the track sits on (an advertising channel, 1090 MHz, a DECT
+carrier). The band is extracted from the capture IQ, filtered, burst-segmented, carrier-centred (detector boxes are
+only bin-accurate) and demodulated; a check that random data cannot pass (CRC, BCH, a 36-bit sync word with at most two
+errors, a cell identity that repeats every 5 ms) decides. A pass sets the label at confidence 0.97 (0.86 for a
+sync-only result), writes `argus:decode` into the annotation and the `decoded` / `decode_summary` columns of
+`lut_regions.csv`. Two rules keep false labels down, since a false label costs more than a miss: an emission below
+6 dB needs verified descriptor evidence or a decode (band plausibility alone is left as `signal`, catch-all band labels
+excepted), and an entry in a shared band needs at least one *strong* verified field (a rate, numerology, timing,
+tone, chirp, hop or decode): modulation class, deviation, duty, burst length and a carrier line are too easy to share
+(an OOK remote at 433 MHz reads as narrow FM with a small deviation to the class test and was once labelled amateur).
+A third rule concerns the receiver's own comb: the N320 bench shows a 1.000 MHz comb of narrow lines at x.27 MHz
+from 839 to 932 MHz, through the 850 MHz uplink, LMR 800, ISM 900 and paging bands alike, and the first figures
+below showed its teeth labelled `~cellular_uplink_850` and `~Pager_FLEX_POCSAG_929` by the band catch-alls. The
+cross-track comb pass now runs before any band label can claim a tooth: only a track with physical-layer evidence
+(a pilot, a rate, a decode) is exempt, a band label alone is not; a comb needs five or more teeth (painted up to
+300 kHz wide by the detector, present in at least half the frames) on one exact spacing, nearly gap-free when
+short, and at least three times as many teeth as the densest off-grid residue of that spacing holds, which is what
+a dense uplink band or an FM band on its 200 kHz raster fails; that background is taken among the lines about as
+persistent as the teeth, so a comb present in every frame still stands out from a band full of weak detections that
+flicker in half the frames; the grid tolerance is 2.5 bins (the detector's boxes jitter by a bin), and a finer grid
+only replaces a coarser one when it explains 1.5 x the lines, so one stray line at a half step does not turn a 1 MHz
+comb into a 0.5 MHz one (`tests/test_comb_pass.py`). The same pass finds the comb at 1.001 MHz in the UAT 978 look
+and a 1.016 MHz comb on the other receiver channel in the DECT look.
 
-*Six looks of the TX/RX sweep with the M12-S detector boxes and the labels `lut_classify.py` wrote into the annotations
-(`plot_look_up_overlays.py --written-labels`): FM stations with the 19 kHz pilot verified (`/analog`), two LTE 700 MHz
-downlink blocks (15 kHz subcarriers, 4.7 us CP), the n41 carrier (30 kHz subcarriers, 5 ms TDD period, `/NR_30kHz`),
-the receiver's 1.001 MHz spur comb and 900 MHz ISM devices, Bluetooth BR/EDR and LE and a Zigbee packet at 2.4 GHz,
-and a Wi-Fi 5 GHz channel (312.5 kHz subcarriers, 0.8 us CP, SIFS, 102.4 ms beacons).*
+![Sweep captures with the M12-S boxes, LUT labels and decodes](figures/lut_spectrograms_real.jpg)
 
-Results (2026-11-10, `notes/lut_experiment_results.md`): measurement unit test 17 / 17 emissions at 20-30 dB, 15 / 17 at
-12 dB; synthetic end-to-end 166 / 189 captures with the exact label, 0 wrong, 168 of 169 correct labels with verified
-evidence; real captures (59 sweep looks + 9 stress captures, 2496 tracks) 602 labels against v1's 515, 489 of them
-with a verified physical-layer field, 0 inconsistent with the capture span.
+**491.52 MSps X410 looks (2026-11-16).** Eleven 400 MHz-wide looks the N320 could not record (`tests/x410_491_sweep.sh`,
+X410 on the CG_400 image). With the detector on its real-time front end (the trained geometry) the look-up gives 1217
+tracks, 62 labels, 8 BLE-advertising decodes and 0 inconsistent labels; the native 1024-point geometry
+(`preprocess_dataset.py --full-resolution`) is the wrong tool here: it fills whole bands on the strong looks and leaves
+189 tracks and 16 labels. The run also closed a precision hole (a whole-band fill carrying two real TV pilots had
+been labelled ATSC_TV): boxes running edge to edge of a capture, and pilot-rescued boxes wider than four times the
+service's widest legal box, are never labelled unless the whole capture lies inside the allocation. Details:
+`notes/lut_experiment_results.md` section 3c; evaluation `tests/results/lut_real_eval_x410_491_rt.md` (and
+`_x410_491.md` for the native run).
+
+![LUT labels and decodes on the 491.52 MSps X410 looks (real-time geometry)](figures/lut_spectrograms_x410_491_rt.jpg)
+
+*Six looks of the 2026-11-10 sweep (`tests/plot_lut_spectrograms.py`): the detector's boxes, the label of every
+labelled track and `[decoded <protocol>]` where a protocol decoder passed. FM stations with RDS (PI codes resolved to
+the Austin call signs KLBJ / KAMX / KKMJ), Bluetooth LE advertising on channel 37 with CRC-valid PDUs next to BR/EDR
+and a Zigbee packet, the 700 MHz downlink block with two LTE carriers identified by physical cell identity, a DMR base
+and a P25 channel (NAC 910) in the UHF LMR look, FLEX pagers (A word DEA0 = 3200 sym/s 4-level) with the receiver's
+1 MHz comb teeth around them labelled as such, and the 850 MHz uplink look where the same comb teeth read
+`~spur_comb_1MHz` between the `~cellular_uplink_850` bursts (the first version of this figure had them labelled as
+uplink).*
+
+![Synthetic captures with their truth boxes, labels and decodes](figures/lut_spectrograms_synthetic.jpg)
+
+*Nine synthetic captures of the same test (one emission each, truth boxes): the decoders pass on the frames the
+recipes now carry (RDS groups, BLE advertising PDUs, LTE PSS/SSS, POCSAG batches, Mode S squitters, ERT SCM packets,
+DMR bursts, DECT slots, 802.15.4 frames).*
+
+Results (2026-11-11, `notes/lut_experiment_results.md`): measurement unit test 17 / 17 emissions at 20-30 dB, 15 / 17 at
+12 dB; decoder round trips 46 / 48 at 10-30 dB (RDS and P25 fail only at 10 dB); synthetic end-to-end 166 / 189 captures
+with the exact label, 0 wrong, every exact label with verified evidence, 47 of the 57 captures of decodable entries
+decoded (all 15 LTE downlinks by cell identity; the rest are analogue draws and NR); real captures (59 sweep looks + the
+30-capture stress set, 6292 tracks): 1161 labels (225 of them the receiver's comb teeth), 772 with a verified
+physical-layer field, 69 with a passing decode
+(RDS on five Austin stations, BLE on all three advertising channels, six LTE cells by physical cell identity, a P25
+channel on UHF and one on 800 MHz, a DMR base, FLEX pagers), 0 labels inconsistent with the capture span.
 
 What the SDW adds over v1, by discriminating power: OFDM numerology (Wi-Fi 312.5 kHz / HE 78.125 kHz vs LTE 15 kHz
 vs NR 30 kHz vs ATSC 3.0 844 Hz), symbol or chip rates (ATSC 10.762 Msym/s, DECT 1.152, BLE / BT 1, Zigbee 2 Mchip/s,

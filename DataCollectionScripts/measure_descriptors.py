@@ -93,6 +93,10 @@ class CaptureIQ:
             X = np.roll(self.chunk_fft(k), -k_off)
             Y = np.concatenate([X[: M // 2], X[-M // 2:]])
             y = (np.fft.ifft(Y) / q).astype(np.complex64)
+            # the bin shift mixes relative to the chunk start; rotate so the mixer phase is continuous in absolute time
+            # (otherwise every chunk boundary carries a phase jump of 2 pi k_off hop / CHUNK)
+            s = k * self.hop - GUARD
+            y *= np.complex64(np.exp(-2j * np.pi * k_off * s / CHUNK))
             g = GUARD // q
             out.append(y[g: M - g] if M > 2 * g else y)
         y = np.concatenate(out) if out else np.zeros(0, dtype=np.complex64)
